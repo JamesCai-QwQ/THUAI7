@@ -259,3 +259,14 @@ public:
     }
 };
 ```
+## 4.Get_Map函数升级
+现在Get_Map函数具有许多的新特性/功能
+
+* 1.对于虫洞的Hp进行判定，并具备判断虫洞是否可经过的能力
+* 2.对于Resource / Construction 进行分析，具备判断资源是否可开采的能力
+* 3.得到己方/敌方的Home并储存
+* 4.以上的信息全部储存在`home_vec` `construction_vec` `resource_vec` `wormhole_vec`
+等vector中，作为全局变量供大家调用
+
+调用方式变化：  
+默认在第一帧时调用Get_Map进行信息采集
