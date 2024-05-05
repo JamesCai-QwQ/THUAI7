@@ -270,3 +270,22 @@ public:
 
 调用方式变化：  
 默认在第一帧时调用Get_Map进行信息采集
+
+## 5.Build_Ship函数
+
+```
+void Build_Ship(ITeamAPI& api, int shipno, int birthdes);
+```
+
+表示在出生点birthdes处建造编号为shipno的船只  
+注意：shipno对应的船只类型是在文件开头 `ShipTypeDict` 中确定的
+
+## 6.GoPlace_Loop函数
+
+为了避免GoPlace一次调用无法实现到达目的地的问题  
+经过实践，确定了GoPlace_Loop函数  
+核心：调用GoPlace十次，如果十次还未到达目的地，则返回错误
+```
+void GoPlace_Loop(IShipAPI& api,int des_x,int des_y);
+```
+实践证明一般十次都可以到达目的地
