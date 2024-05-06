@@ -589,7 +589,7 @@ std::vector<std::vector<int>> Get_Map(IShipAPI& api)
                     if (hp == -1)
                     {
                         wormhole_vec.push_back(my_Wormhole(i, j, 18000));
-                        Map_grid[i][j] == 0;
+                        Map_grid[i][j] = 0;
                         hp = 18000;
                     }
                     else
