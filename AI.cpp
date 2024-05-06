@@ -571,16 +571,15 @@ std::vector<std::vector<int>> Get_Map(IShipAPI& api)
         home_vec[0].HP = api.GetHomeHp();
     }
 
-
     for (int i = 0; i < map_size; i++)
     {
         for (int j = 0; j < map_size; j++)
         {
             if (map[i][j] == THUAI7::PlaceType::Space || map[i][j] == THUAI7::PlaceType::Shadow || map[i][j] == THUAI7::PlaceType::Wormhole)
             {  // 可经过的地点为0，默认(不可以途径)为1
+                Map_grid[i][j] = 0;
                 if (map[i][j] == THUAI7::PlaceType::Space || map[i][j] == THUAI7::PlaceType::Shadow)
                 {
-                    Map_grid[i][j] = 0;
                     continue;
                 }
                 auto hp = api.GetWormholeHp(i, j);
@@ -589,7 +588,6 @@ std::vector<std::vector<int>> Get_Map(IShipAPI& api)
                     if (hp == -1)
                     {
                         wormhole_vec.push_back(my_Wormhole(i, j, 18000));
-                        Map_grid[i][j] = 0;
                         hp = 18000;
                     }
                     else
@@ -599,11 +597,6 @@ std::vector<std::vector<int>> Get_Map(IShipAPI& api)
                         {
                             Map_grid[i][j] = 1;
                         }
-                        else
-                        {
-                            Map_grid[i][j] = 0;
-                        }
-
                     }
                 }
                 else
@@ -622,9 +615,9 @@ std::vector<std::vector<int>> Get_Map(IShipAPI& api)
             }
             else if (map[i][j] == THUAI7::PlaceType::Resource)
             {
-                if (map[i+1][j] == THUAI7::PlaceType::Space || map[i+1][j] == THUAI7::PlaceType::Shadow)
+                if (map[i + 1][j] == THUAI7::PlaceType::Space || map[i + 1][j] == THUAI7::PlaceType::Shadow)
                 {
-                    resource_vec.push_back(my_Resource(i, j, i + 1,j));
+                    resource_vec.push_back(my_Resource(i, j, i + 1, j));
                     continue;
                 }
                 else if (map[i - 1][j] == THUAI7::PlaceType::Space || map[i - 1][j] == THUAI7::PlaceType::Shadow)
@@ -634,12 +627,12 @@ std::vector<std::vector<int>> Get_Map(IShipAPI& api)
                 }
                 else if (map[i][j + 1] == THUAI7::PlaceType::Space || map[i][j + 1] == THUAI7::PlaceType::Shadow)
                 {
-                    resource_vec.push_back(my_Resource(i, j, i , j+1));
+                    resource_vec.push_back(my_Resource(i, j, i, j + 1));
                     continue;
                 }
                 else if (map[i][j - 1] == THUAI7::PlaceType::Space || map[i][j - 1] == THUAI7::PlaceType::Shadow)
                 {
-                    resource_vec.push_back(my_Resource(i, j, i , j-1));
+                    resource_vec.push_back(my_Resource(i, j, i, j - 1));
                     continue;
                 }
             }
