@@ -548,7 +548,7 @@ std::vector<std::vector<int>> Get_Map(IShipAPI& api)
     {
         for (int j = 0; j < map_size; j++)
         {
-            if (map[i][j] == THUAI7::PlaceType::Space || map[i][j] == THUAI7::PlaceType::Shadow)
+            if (map[i][j] == THUAI7::PlaceType::Space || map[i][j] == THUAI7::PlaceType::Shadow || map[i][j] == THUAI7::PlaceType::Shadow)
             {  // 可经过的地点为0，默认(不可以途径)为1
                 Map_grid[i][j] = 0;
                 //std::string str_1 = "(" + std::to_string(i) + "," + std::to_string(j) + ")";
