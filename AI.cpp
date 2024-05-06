@@ -190,6 +190,29 @@ void Construct_Module(ITeamAPI& api, int shipno,int type = 3);
 void Build_Ship(ITeamAPI& api, int shipno, int birthdes);
 
 
+/*
+以下是通信接口的定义： 
+
+船船间：第一位"1" 表示遇到敌人 "0"表示正常
+第二三、四五位表示自身所在的位置"0120" 默认全为0
+
+船基间：
+第一位表示所需的装备类型 "0":Sheild "1":Armor "2":Weapon
+第二位表示装备的编号 "1""2""3"等
+对于武器
+1默认Laser Gun 2为Plasma 3为Shell 4为missle 5为Arc
+
+基船间：
+发送任意文字都表示遇袭
+*/
+
+void Decode_Me(IShipAPI& api);
+
+void Send_Me(IShipAPI& api, std::string str);
+
+void Decode_Me(ITeamAPI& api);
+
+void Send_Me(ITeamAPI& api);
 
 
 
@@ -1137,4 +1160,123 @@ void Build_Specific(IShipAPI& api, THUAI7::ConstructionType type, my_Constructio
         api.Print("Construct Successfully Finished !");
     }
     return;
+}
+
+void Decode_Me(IShipAPI& api)
+{
+    // 舰船解码message
+    if (api.HaveMessage())
+    {
+        auto message = api.GetMessage();
+        int from = message.first;
+        if (from == 0)
+        {
+            // 回防基地
+            GoPlace_Loop(api, home_vec[0].x_4p, home_vec[0].y_4p);
+        }
+        else
+        {
+            auto info = message.second;
+            if (info[0] == '1')
+            {
+                auto info1 = info.c_str();
+                int place_x = 10 * (info1[1] - '0') + (info[2] - '0');
+                int place_y = 10 * (info1[3] - '0') + (info[4] - '0');
+                // 友军有难，不动如山（bushi）
+                GoPlace_Loop(api, place_x, place_y);
+            }
+        }
+    }
+}
+
+void Send_Me(IShipAPI& api, std::string str)
+{
+    // 非常简陋，主要是到底发送什么消息需要在Attack/Hide里面调用才合适
+    if (str.c_str()[0] == '0')
+    {
+        api.SendBinaryMessage(0, str);
+    }
+    else
+    {
+        api.SendBinaryMessage(str.c_str()[0] - '0', str);
+    }
+    return;
+}
+
+void Send_Me(ITeamAPI& api)
+{
+    int hp = api.GetHomeHp();
+    api.Wait();
+    int hp1 = api.GetHomeHp();
+    if (hp1 < hp)
+    {
+        api.SendBinaryMessage(1, "0");
+        api.SendBinaryMessage(2, "0");
+        api.SendBinaryMessage(3, "0");
+        api.SendBinaryMessage(4, "0");
+    }
+    return;
+}
+
+void Decode_Me(ITeamAPI& api)
+{
+    // 基地解码
+    if (api.HaveMessage())
+    {
+        auto message = api.GetMessage();
+        int number = message.first;
+        auto info = message.second.c_str();
+        if (info[0] == '0')
+        {
+            switch (info[1] - '0')
+            {
+                case 1:
+                    api.InstallModule(number, THUAI7::ModuleType::ModuleShield1);
+                    break;
+                case 2:
+                    api.InstallModule(number, THUAI7::ModuleType::ModuleShield2);
+                    break;
+                case 3:
+                    api.InstallModule(number, THUAI7::ModuleType::ModuleShield3);
+                    break;
+            }
+        }
+        else if (info[0] == '1')
+        {
+            switch (info[1] - '0')
+            {
+                case 1:
+                    api.InstallModule(number,THUAI7::ModuleType::ModuleArmor1);
+                    break;
+                case 2:
+                    api.InstallModule(number, THUAI7::ModuleType::ModuleArmor2);
+                    break;
+                case 3:
+                    api.InstallModule(number, THUAI7::ModuleType::ModuleArmor3);
+                    break;
+            }
+        }
+        else if (info[0] == '2')
+        {
+            switch (info[1] - '0')
+            {
+                case 1:
+                    
+                    api.InstallModule(number, THUAI7::ModuleType::ModuleLaserGun);
+                    break;
+                case 2:
+                    api.InstallModule(number, THUAI7::ModuleType::ModulePlasmaGun);
+                    break;
+                case 3:
+                    api.InstallModule(number, THUAI7::ModuleType::ModuleShellGun);
+                    break;
+                case 4:
+                    api.InstallModule(number, THUAI7::ModuleType::ModuleMissileGun);
+                    break;
+                case 5:
+                    api.InstallModule(number, THUAI7::ModuleType::ModuleArcGun);
+                    break;
+            }
+        }
+    }
 }
