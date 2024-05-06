@@ -294,10 +294,17 @@ void GoPlace_Loop(IShipAPI& api,int des_x,int des_y);
 
 ## 1.更新Get_Map函数
 
+* 修复了BUG：关于虫洞的判定
 * 通过teamID来判断自己的家在哪
 ### 更新 my_Home
 * 新设定了两个位置 x_4p y_4p 用来回防的点位
 * 会获取离Base最近且距离小于8000的点位 这个点位可以用来建造Fort
   
-## 2.Build_Specific更新，在选定的位置建设选定建筑物
-## 3.Produce_Module / Construct_Module更新，删去了limit参数，改为函数内部判断能否安装模组
+## 2.Build_Specific
+更新，在选定的位置建设选定建筑物
+## 3.Produce_Module / Construct_Module
+更新，删去了limit参数，改为函数内部判断能否安装模组
+
+## 4.my_closet_2_home
+my_Construction类，用于存放距离Base最近的construction类型，并且距离在8以内，以用于建造Fort
+
