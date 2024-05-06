@@ -385,31 +385,41 @@ void AttackShip(IShipAPI& api)
 
     auto Enemys = api.GetEnemyShips();
     int size = Enemys.size();
-
-    if (size == 0 || api.GetSelfInfo()->weaponType == THUAI7::WeaponType::NullWeaponType)
-    {
-        // 无攻击对象或者没有武器（xs），返回(1,47)（他妈的为什么找不到函数返回家的位置？）
-        GoPlace(api, 1, 47);
-        return;
-    }
-
     // atan是math.h里面的函数(反三角正切)
     // 用于得到敌方船只的方位
     auto Enemy0x = Enemys[0]->x;
     auto Enemy0y = Enemys[0]->y;
     int dis0x = Enemy0x - gridx;
     int dis0y = Enemy0y - gridy;
-    double angle0 = atan(dis0y / dis0x);
-    double distance0 = dis0y * dis0y + dis0x * dis0y;
+    double angle0;
+    if (dis0x == 0)
+        if (dis0y > 0)
+            angle0 = pi / 2;
+        else
+            angle0 = -pi / 2;
+    else if (dis0x > 0)
+        angle0 = atan(dis0y / dis0x);
+    else
+        angle0 = atan(dis0y / dis0x) + pi;
+    double distance0 = dis0y * dis0y + dis0x * dis0x;
 
     // 两个船都在视野内
-    if (Enemys[1] != nullptr)
+    if (size != 1)
     {
         auto Enemy1x = Enemys[1]->x;
         auto Enemy1y = Enemys[1]->y;
         int dis1x = Enemy1x - gridx;
         int dis1y = Enemy1y - gridy;
-        double angle1 = atan(dis1y / dis1x);
+        double angle1;
+        if (dis1x == 0)
+            if (dis1y > 0)
+                angle1 = pi / 2;
+            else
+                angle1 = -pi / 2;
+        else if (dis1x > 0)
+            angle1 = atan(dis1y / dis1x);
+        else
+            angle1 = atan(dis1y / dis1x) + pi;
         double distance1 = dis1x * dis1x + dis1y * dis1y;
 
         // 优先攻击临近的船只
