@@ -8,11 +8,11 @@
 #include <math.h>
 
 #define pi 3.141592653589
-// ×¢Òâ²»ÒªÊ¹ÓÃconio.h£¬Windows.hµÈ·Ç±ê×¼¿â
-// Îª¼ÙÔòplay()ÆÚ¼äÈ·±£ÓÎÏ·×´Ì¬²»¸üĞÂ£¬ÎªÕæÔòÖ»±£Ö¤ÓÎÏ·×´Ì¬ÔÚµ÷ÓÃÏà¹Ø·½·¨Ê±²»¸üĞÂ£¬´óÖÂÒ»Ö¡¸üĞÂÒ»´Î
+// æ³¨æ„ä¸è¦ä½¿ç”¨conio.hï¼ŒWindows.hç­‰éæ ‡å‡†åº“
+// ä¸ºå‡åˆ™play()æœŸé—´ç¡®ä¿æ¸¸æˆçŠ¶æ€ä¸æ›´æ–°ï¼Œä¸ºçœŸåˆ™åªä¿è¯æ¸¸æˆçŠ¶æ€åœ¨è°ƒç”¨ç›¸å…³æ–¹æ³•æ—¶ä¸æ›´æ–°ï¼Œå¤§è‡´ä¸€å¸§æ›´æ–°ä¸€æ¬¡
 extern const bool asynchronous = true;
 
-// Ñ¡ÊÖĞèÒªÒÀ´Î½«player1µ½player4µÄ´¬ÀàĞÍÔÚÕâÀï¶¨Òå
+// é€‰æ‰‹éœ€è¦ä¾æ¬¡å°†player1åˆ°player4çš„èˆ¹ç±»å‹åœ¨è¿™é‡Œå®šä¹‰
 extern const std::array<THUAI7::ShipType, 4> ShipTypeDict = {
     THUAI7::ShipType::CivilianShip,
     THUAI7::ShipType::CivilianShip,
@@ -20,9 +20,9 @@ extern const std::array<THUAI7::ShipType, 4> ShipTypeDict = {
     THUAI7::ShipType::FlagShip,
 };
 
-// ¿ÉÒÔÔÚAI.cppÄÚ²¿ÉùÃ÷±äÁ¿Óëº¯Êı
+// å¯ä»¥åœ¨AI.cppå†…éƒ¨å£°æ˜å˜é‡ä¸å‡½æ•°
 
-// ³£Á¿ÉêÃ÷
+// å¸¸é‡ç”³æ˜
 const int map_size = 50;
 int dx[] = {-1, 0, 1, 0};
 int dy[] = {0, -1, 0, 1};
@@ -40,14 +40,14 @@ struct Point
 struct Point direction[1000];
 
 
-// ¶¨ÒåËÄ¸öÀà£¬ÓÃÓÚÖ´ĞĞÏà¹Ø²Ù×÷
+// å®šä¹‰å››ä¸ªç±»ï¼Œç”¨äºæ‰§è¡Œç›¸å…³æ“ä½œ
 class my_Resource
 {
 public:
     int HP=16000;
     int x;
     int y;
-    // ¿ª²ÉµãÎ»
+    // å¼€é‡‡ç‚¹ä½
     int x_4p;
     int y_4p;
     my_Resource(int x_, int y_,int x4,int y4)
@@ -59,18 +59,46 @@ public:
     }
 };
 
+class my_Home
+{
+public:
+    int x;
+    int y;
+    int HP = 10000;
+
+    // 1å·±æ–¹ 2æ•Œæ–¹
+    int group = 0;
+
+    // å¯ä»¥ç”¨äºé˜²å«å®¶çš„ç‚¹ä½
+    int x_4p;
+    int y_4p;
+    my_Home(int i, int j, int gp)
+    {
+        x = i;
+        y = j;
+        group = gp;
+    }
+    my_Home()
+    {
+        x = 0;
+        y = 0;
+    }
+};
+std::vector<my_Home> home_vec;
+
 class my_Construction
 {
 public:
     THUAI7::ConstructionType type=THUAI7::ConstructionType::NullConstructionType;
     int x;
     int y;
+    int home_dist;
 
-    // ½¨ÔìµãÎ»
+    // å»ºé€ ç‚¹ä½
     int x_4c;
     int y_4c;
     int HP=0;
-    // 0ÎªÎŞ 1Îª¼º·½ 2ÎªµĞ·½
+    // 0ä¸ºæ—  1ä¸ºå·±æ–¹ 2ä¸ºæ•Œæ–¹
     int group=0;
 
     my_Construction(int i, int j,int i_4c,int j_4c)
@@ -79,27 +107,16 @@ public:
         y = j;
         x_4c = i_4c;
         y_4c = j_4c;
+        home_dist = (i - home_vec[0].x) * (i - home_vec[0].x) + (j - home_vec[0].y) * (j - home_vec[0].y);
     }
-};
-
-class my_Home
-{
-public:
-    int x;
-    int y;
-    int HP=10000;
-
-    // 1¼º·½ 2µĞ·½
-    int group=0;
-
-    my_Home(int i, int j, int gp)
+    my_Construction()
     {
-        x = i;
-        y = j;
-        group = gp;
-        
+        x = 0;
+        y = 0;
     }
 };
+
+
 
 class my_Wormhole
 {
@@ -118,7 +135,7 @@ public:
 
 std::vector<my_Resource> resource_vec;
 std::vector<my_Construction> construction_vec;
-std::vector<my_Home> home_vec;
+my_Construction closest_2_home;
 std::vector<my_Wormhole> wormhole_vec;
 
 std::vector<std::vector<int>> Map_grid(map_size, std::vector<int>(map_size, 1));
@@ -132,42 +149,42 @@ NeedModule modl1;
 
 
 
-// ÒÔÏÂÊÇµ÷ÓÃµÄº¯ÊıÁĞ±í
-void Judge(IShipAPI& api);                         // ÅĞ¶ÏÓ¦µ±½øĞĞÄÄ¸ö²Ù×÷(¹¥»÷/»ñÈ¡×ÊÔ´µÈ)
-void Base_Operate(ITeamAPI& api);                  // »ùµØµÄ²Ù×÷
-void AttackShip(IShipAPI& api);                    // ¹¥»÷µĞ·½´¬Ö»
-void Install_Module(ITeamAPI& api, int number, int type);  // Îª´¬Ö»°²×°Ä£¿é 1:Attack 2:Construct 3:Comprehensive
-bool GoCell(IShipAPI& api);                        // ÒÆ¶¯µ½cellÖĞĞÄ
+// ä»¥ä¸‹æ˜¯è°ƒç”¨çš„å‡½æ•°åˆ—è¡¨
+void Judge(IShipAPI& api);                         // åˆ¤æ–­åº”å½“è¿›è¡Œå“ªä¸ªæ“ä½œ(æ”»å‡»/è·å–èµ„æºç­‰)
+void Base_Operate(ITeamAPI& api);                  // åŸºåœ°çš„æ“ä½œ
+void AttackShip(IShipAPI& api);                    // æ”»å‡»æ•Œæ–¹èˆ¹åª
+void Install_Module(ITeamAPI& api, int number, int type);  // ä¸ºèˆ¹åªå®‰è£…æ¨¡å— 1:Attack 2:Construct 3:Comprehensive
+bool GoCell(IShipAPI& api);                        // ç§»åŠ¨åˆ°cellä¸­å¿ƒ
 
 
-// ÒÔÏÂÊÇÑ°Â·Ïà¹ØµÄº¯Êı
+// ä»¥ä¸‹æ˜¯å¯»è·¯ç›¸å…³çš„å‡½æ•°
 bool isValid(IShipAPI& api, int x, int y);
-std::vector<std::vector<int>> Get_Map(IShipAPI& api);                            // µÃµ½Ò»¸ö¶şÎ¬vector£¬°üº¬µØÍ¼ÉÏ¿É×ß/²»¿É×ßĞÅÏ¢
-const std::vector<Point> findShortestPath(const std::vector<std::vector<int>>& grid, Point start, Point end, IShipAPI& api);  // ¹ã¶ÈÓÅÏÈËÑË÷Ñ°Â·
+std::vector<std::vector<int>> Get_Map(IShipAPI& api);                            // å¾—åˆ°ä¸€ä¸ªäºŒç»´vectorï¼ŒåŒ…å«åœ°å›¾ä¸Šå¯èµ°/ä¸å¯èµ°ä¿¡æ¯
+const std::vector<Point> findShortestPath(const std::vector<std::vector<int>>& grid, Point start, Point end, IShipAPI& api);  // å¹¿åº¦ä¼˜å…ˆæœç´¢å¯»è·¯
 bool GoPlace(IShipAPI& api, int des_x, int des_y);
 void GoPlace_Loop(IShipAPI& api,int des_x,int des_y);
-bool Path_Release(std::vector<Point> Path, IShipAPI& api,int count); //ÊµÏÖÂ·¾¶(Î´Ê¹ÓÃ)
+bool Path_Release(std::vector<Point> Path, IShipAPI& api,int count); //å®ç°è·¯å¾„(æœªä½¿ç”¨)
 
-// ÒÔÏÂÊÇ¿ª²É×ÊÔ´¡¢½¨ÉèÏà¹Øº¯Êı
+// ä»¥ä¸‹æ˜¯å¼€é‡‡èµ„æºã€å»ºè®¾ç›¸å…³å‡½æ•°
 
-// ±©Á¦±éÀúËùÓĞ¼º·½×ÊÔ´
+// æš´åŠ›éå†æ‰€æœ‰å·±æ–¹èµ„æº
 void Get_Resource(IShipAPI& api);
 
-// ÔÚÑ¡¶¨µÄÎ»ÖÃ½¨ÉèÑ¡¶¨µÄ½¨ÖşÎï
-void Build_Specific(IShipAPI& api, THUAI7::ConstructionType type, int number);
+// åœ¨é€‰å®šçš„ä½ç½®å»ºè®¾é€‰å®šçš„å»ºç­‘ç‰©
+void Build_Specific(IShipAPI& api, THUAI7::ConstructionType type, my_Construction construction);
 
-// ÔÚËùÓĞÎ»ÖÃ½¨ÉèÑ¡¶¨µÄ½¨ÖşÎï
+// åœ¨æ‰€æœ‰ä½ç½®å»ºè®¾é€‰å®šçš„å»ºç­‘ç‰©
 void Build_ALL(IShipAPI& api, THUAI7::ConstructionType type);
 
-// ÒÔÏÂÊÇ´ó±¾Óª¹ÜÀíÏà¹Øº¯Êı
+// ä»¥ä¸‹æ˜¯å¤§æœ¬è¥ç®¡ç†ç›¸å…³å‡½æ•°
 
-// °²×°¿ª²ÉÄ£×é
-void Produce_Module(ITeamAPI& api, int shipno, int limit,int type=3);
+// å®‰è£…å¼€é‡‡æ¨¡ç»„
+void Produce_Module(ITeamAPI& api, int shipno,int type=3);
 
-// °²×°½¨ÔìÄ£×é
-void Construct_Module(ITeamAPI& api, int shipno, int limit, int type = 3);
+// å®‰è£…å»ºé€ æ¨¡ç»„
+void Construct_Module(ITeamAPI& api, int shipno,int type = 3);
 
-// ½¨´¬º¯Êı
+// å»ºèˆ¹å‡½æ•°
 void Build_Ship(ITeamAPI& api, int shipno, int birthdes);
 
 
@@ -178,41 +195,42 @@ void AI::play(IShipAPI& api)
 {
     if (api.GetFrameCount() == 1)
     {
-        // µ±ÇÒ½öµ± Ö¡ÊıÎª 1  µ÷ÓÃGet_Map 
-        // ½ÚÊ¡ÔËËãÊ±¼ä
+        // å½“ä¸”ä»…å½“ å¸§æ•°ä¸º 1  è°ƒç”¨Get_Map 
+        // èŠ‚çœè¿ç®—æ—¶é—´
         Get_Map(api);
     }
     if (this->playerID == 1)
     {
+        // 1å·æ°‘èˆ¹å®šä½ æŒ–çŸ¿
         Get_Resource(api);
         api.PrintSelfInfo();
     }
     else if (this->playerID == 2)
     {
-        Build_ALL(api, THUAI7::ConstructionType::Factory);
+        // 2å·æ°‘èˆ¹å®šä½ å»ºå·¥å‚
+        Build_Specific(api, THUAI7::ConstructionType::Fort, closest_2_home);
         api.PrintSelfInfo();
     }
     else if (this->playerID == 3)
     {
+        // 3å·å†›èˆ¹ ï¼Ÿï¼Ÿï¼Ÿ
         api.PrintSelfInfo();
     }
     else if (this->playerID == 4)
     {
+        // 4å·æ——èˆ° å·å®¶(ä¸æ˜¯)
         api.PrintSelfInfo();
         GoPlace_Loop(api, home_vec[1].x + 1, home_vec[1].y);
         api.Attack(pi);
     }
 }
 
-void AI::play(ITeamAPI& api)  // Ä¬ÈÏteam playerID Îª0
+void AI::play(ITeamAPI& api)  // é»˜è®¤team playerID ä¸º0
 {
+    Base_Operate(api);
     api.PrintSelfInfo();
     api.PrintTeam();
-    Produce_Module(api, 1, 8000, 3);
-    api.Wait();
-    Build_Ship(api, 2, 0);
-    Build_Ship(api, 3, 0);
-    Build_Ship(api, 4, 0);
+    Produce_Module(api, 1, 3);
 }
 
 
@@ -243,7 +261,7 @@ bool GoCell(IShipAPI& api)
         speed = SPEED_MILIT_MS;
     }
 
-    //·µ»ØÒ»Ğ©¹ØÓÚCELL×ø±êĞÅÏ¢
+    //è¿”å›ä¸€äº›å…³äºCELLåæ ‡ä¿¡æ¯
     std::string strx = std::to_string(cellx);
     std::string stry = std::to_string(celly);
     api.Print("GoCell Called");
@@ -294,15 +312,11 @@ bool GoCell(IShipAPI& api)
     
     if (abs(Gcellx - gridx) <= 30 && abs(Gcelly - gridy) <= 30)
     {
-        api.PrintShip();
-        api.PrintSelfInfo();
         api.Print("GoCell Finished !");
         return true;
     }
     else
     {
-        api.PrintShip();
-        api.PrintSelfInfo();
         api.Print("GoCell Did not Finish");
         return false; 
     }
@@ -314,49 +328,44 @@ bool GoCell(IShipAPI& api)
 void Base_Operate(ITeamAPI& api)
 {
     auto selfships = api.GetShips();
-    int count = 0;
-    if (selfships[count] != nullptr)
+    int number = selfships.size();
+    if (number == 1)
     {
-        // ¼ÆËã¼º·½´æ»î´¬Ö»ÊıÄ¿
-        count++;
+        Build_Ship(api, 2, 0);
     }
-    if (count < 2)
+    else if (number == 2)
     {
-        // Ğ¡ÓÚ¶ş´¬Ê±£¬½¨ÔìÒ»¸öĞÂµÄÎä×°´¬
-        api.BuildShip(THUAI7::ShipType::MilitaryShip, 0);
+        Build_Ship(api, 3, 0);
     }
-    else if (count == 2)
+    else
     {
-        api.BuildShip(THUAI7::ShipType::CivilianShip, 0);
-    }
-    else if (count == 3)
-    {
-        api.BuildShip(THUAI7::ShipType::FlagShip, 0);
+        Build_Ship(api, 4, 0);
     }
     return;
 }
 
 void Install_Module(ITeamAPI& api, int number, int type)
 {
-    // ¶ÔÓÚnumber±àºÅµÄ´¬Ö»°²×°¶ÔÓ¦µÄ×°±¸
+    // å¯¹äºnumberç¼–å·çš„èˆ¹åªå®‰è£…å¯¹åº”çš„è£…å¤‡
     auto selfships = api.GetShips();
+    int size = selfships.size();
     if (type == 1)
     {
-        // Ò»ºÅÀàĞÍ×°±¸(Attack)
+        // ä¸€å·ç±»å‹è£…å¤‡(Attack)
         api.InstallModule(number, THUAI7::ModuleType::ModuleMissileGun);
         std::this_thread::sleep_for(std::chrono::seconds(1));
         api.InstallModule(number, THUAI7::ModuleType::ModuleArmor2);
     }
     else if (type == 2)
     {
-        // ¶şºÅÀàĞÍ×°±¸(Construct)
+        // äºŒå·ç±»å‹è£…å¤‡(Construct)
         api.InstallModule(number, THUAI7::ModuleType::ModuleArmor1);
         std::this_thread::sleep_for(std::chrono::seconds(1));
         api.InstallModule(number, THUAI7::ModuleType::ModuleConstructor2);
     }
     else if (type == 3)
     {
-        // ÈıºÅÀàĞÍ×°±¸(Comprehensive)
+        // ä¸‰å·ç±»å‹è£…å¤‡(Comprehensive)
         api.InstallModule(number, THUAI7::ModuleType::ModuleArcGun);
         std::this_thread::sleep_for(std::chrono::seconds(1));
         api.InstallModule(number, THUAI7::ModuleType::ModuleArmor1);
@@ -368,7 +377,7 @@ void Install_Module(ITeamAPI& api, int number, int type)
 
 void AttackShip(IShipAPI& api)
 {
-    // ¹¥»÷µĞ·½´¬Ö»µÄº¯Êı
+    // æ”»å‡»æ•Œæ–¹èˆ¹åªçš„å‡½æ•°
     int gridx = api.GetSelfInfo()->x;
     int gridy = api.GetSelfInfo()->y;
 
@@ -377,13 +386,13 @@ void AttackShip(IShipAPI& api)
 
     if (size == 0 || api.GetSelfInfo()->weaponType == THUAI7::WeaponType::NullWeaponType)
     {
-        // ÎŞ¹¥»÷¶ÔÏó»òÕßÃ»ÓĞÎäÆ÷£¨xs£©£¬·µ»Ø(1,47)£¨ËûÂèµÄÎªÊ²Ã´ÕÒ²»µ½º¯Êı·µ»Ø¼ÒµÄÎ»ÖÃ£¿£©
+        // æ— æ”»å‡»å¯¹è±¡æˆ–è€…æ²¡æœ‰æ­¦å™¨ï¼ˆxsï¼‰ï¼Œè¿”å›(1,47)ï¼ˆä»–å¦ˆçš„ä¸ºä»€ä¹ˆæ‰¾ä¸åˆ°å‡½æ•°è¿”å›å®¶çš„ä½ç½®ï¼Ÿï¼‰
         GoPlace(api, 1, 47);
         return;
     }
 
-    // atanÊÇmath.hÀïÃæµÄº¯Êı(·´Èı½ÇÕıÇĞ)
-    // ÓÃÓÚµÃµ½µĞ·½´¬Ö»µÄ·½Î»
+    // atanæ˜¯math.hé‡Œé¢çš„å‡½æ•°(åä¸‰è§’æ­£åˆ‡)
+    // ç”¨äºå¾—åˆ°æ•Œæ–¹èˆ¹åªçš„æ–¹ä½
     auto Enemy0x = Enemys[0]->x;
     auto Enemy0y = Enemys[0]->y;
     int dis0x = Enemy0x - gridx;
@@ -391,7 +400,7 @@ void AttackShip(IShipAPI& api)
     double angle0 = atan(dis0y / dis0x);
     double distance0 = dis0y * dis0y + dis0x * dis0y;
 
-    // Á½¸ö´¬¶¼ÔÚÊÓÒ°ÄÚ
+    // ä¸¤ä¸ªèˆ¹éƒ½åœ¨è§†é‡å†…
     if (Enemys[1] != nullptr)
     {
         auto Enemy1x = Enemys[1]->x;
@@ -401,7 +410,7 @@ void AttackShip(IShipAPI& api)
         double angle1 = atan(dis1y / dis1x);
         double distance1 = dis1x * dis1x + dis1y * dis1y;
 
-        // ÓÅÏÈ¹¥»÷ÁÙ½üµÄ´¬Ö»
+        // ä¼˜å…ˆæ”»å‡»ä¸´è¿‘çš„èˆ¹åª
         if (distance1 <= distance0)
         {
             api.Attack(angle1);
@@ -413,13 +422,13 @@ void AttackShip(IShipAPI& api)
     }
     else
     {
-        // Ö»ÓĞÒ»¸ö´¬
+        // åªæœ‰ä¸€ä¸ªèˆ¹
         api.Attack(angle0);
     }
 }
 void Judge(IShipAPI& api)
 {
-    // ½øĞĞÅĞ¶Ï£¬ÌÖÂÛÓ¦µ±½øĞĞÊ²Ã´²Ù×÷£¬¹¥»÷»¹ÊÇ»ñÈ¡×ÊÔ´
+    // è¿›è¡Œåˆ¤æ–­ï¼Œè®¨è®ºåº”å½“è¿›è¡Œä»€ä¹ˆæ“ä½œï¼Œæ”»å‡»è¿˜æ˜¯è·å–èµ„æº
     int gridx = api.GetSelfInfo()->x;
     int gridy = api.GetSelfInfo()->y;
     int cellx = api.GridToCell(gridx);
@@ -431,8 +440,8 @@ void Judge(IShipAPI& api)
     int totalenenmyhp = 0;
     for (int i = 0; enemyships[i] != nullptr; i++)
         totalenenmyhp += enemyships[i]->hp;
-    // ÏÂÃæÊÇË¿ÑªÒş±Î£¨½øshadow£©
-    if (HP < 1000 && totalenenmyhp > HP)  // Ìõ¼ş¿ÉÄÜ»¹Òª¸Ä
+    // ä¸‹é¢æ˜¯ä¸è¡€éšè”½ï¼ˆè¿›shadowï¼‰
+    if (HP < 1000 && totalenenmyhp > HP)  // æ¡ä»¶å¯èƒ½è¿˜è¦æ”¹
     {
         for (int i = cellx - 8 < 0 ? 0 : cellx - 8; i < (cellx + 9 > 50 ? 50 : cellx + 9); i++)
         {
@@ -442,11 +451,11 @@ void Judge(IShipAPI& api)
                     GoPlace(api, i, j);
             }
         }
-        // ÒÔÏÂÊÇ¸æÖªbaseÒª×°×°±¸£¬Òª¶¨ÒåÈ«¾Ö±äÁ¿´«µİĞÅÏ¢£¬baseÄÚµÄº¯Êı¿ÉÒÔÔÙ½øĞĞÅĞ¶ÏºÍ¾ö²ß£¬ĞÅÏ¢´«µİÒª¼ÓÂß¼­ºÍÅĞ¶Ï
+        // ä»¥ä¸‹æ˜¯å‘ŠçŸ¥baseè¦è£…è£…å¤‡ï¼Œè¦å®šä¹‰å…¨å±€å˜é‡ä¼ é€’ä¿¡æ¯ï¼Œbaseå†…çš„å‡½æ•°å¯ä»¥å†è¿›è¡Œåˆ¤æ–­å’Œå†³ç­–ï¼Œä¿¡æ¯ä¼ é€’è¦åŠ é€»è¾‘å’Œåˆ¤æ–­
         modl1.number = api.GetSelfInfo()->playerID;
         modl1.moduletype = THUAI7::ModuleType::ModuleShield3;
     }
-    // ¹¥»÷
+    // æ”»å‡»
     if (enemyships[0] != nullptr)
     {
         if (api.GetSelfInfo()->weaponType != THUAI7::WeaponType::NullWeaponType)
@@ -455,12 +464,12 @@ void Judge(IShipAPI& api)
             return;
         }
         else
-            ;  // ÔİÊ±¿Õ×Å£¬ºóÃæÓÃÌÓÀëº¯ÊıÌæ´ú£¬¿ÉÄÜÓëÉÏÃæË¿ÑªÒş±ÎºÏ²¢´úÂë
+            ;  // æš‚æ—¶ç©ºç€ï¼Œåé¢ç”¨é€ƒç¦»å‡½æ•°æ›¿ä»£ï¼Œå¯èƒ½ä¸ä¸Šé¢ä¸è¡€éšè”½åˆå¹¶ä»£ç 
     }
 
-    // ×ÊÔ´&½¨Ôì(To Be Edited)
-    //  map ÊÇÕû¸öµØÍ¼µÄ(cell×ø±ê) Ò²¾ÍÊÇËµ[i][j]µÄÈ¡ÖµÔÚ0-49(50*50¸ö¸ñ×Ó)
-    //  Ä¿Ç°ËÑË÷·¶Î§ºÍÊÓÒ°·¶Î§Ò»Ñù
+    // èµ„æº&å»ºé€ (To Be Edited)
+    //  map æ˜¯æ•´ä¸ªåœ°å›¾çš„(cellåæ ‡) ä¹Ÿå°±æ˜¯è¯´[i][j]çš„å–å€¼åœ¨0-49(50*50ä¸ªæ ¼å­)
+    //  ç›®å‰æœç´¢èŒƒå›´å’Œè§†é‡èŒƒå›´ä¸€æ ·
     if (api.GetSelfInfo()->shipType == THUAI7::ShipType::CivilianShip || api.GetSelfInfo()->shipType == THUAI7::ShipType::FlagShip)
     {
         for (int i = cellx - 8 < 0 ? 0 : cellx - 8; i < (cellx + 9 > 50 ? 50 : cellx + 9); i++)
@@ -469,13 +478,13 @@ void Judge(IShipAPI& api)
             {
                 if (map[i][j] == THUAI7::PlaceType::Resource)
                 {
-                    // ÕâÀï²»Çå³şGetResourceStateµ½µ×·µ»ØÁËÉ¶£¿
-                    // ÊÇÒ»¸öint_32µ«ÊÇ²»ÖªµÀ±íÊ¾µÄÊ²Ã´ÒâË¼(±íÊ¾µÄÊÇHp,Ëæ×Å¿ª²É¼õĞ¡)
-                    // µ«ÊÇGetResourceStateÒ²Ö»ÄÜÔÚÊÓÒ°·¶Î§ÄÚ
+                    // è¿™é‡Œä¸æ¸…æ¥šGetResourceStateåˆ°åº•è¿”å›äº†å•¥ï¼Ÿ
+                    // æ˜¯ä¸€ä¸ªint_32ä½†æ˜¯ä¸çŸ¥é“è¡¨ç¤ºçš„ä»€ä¹ˆæ„æ€(è¡¨ç¤ºçš„æ˜¯Hp,éšç€å¼€é‡‡å‡å°)
+                    // ä½†æ˜¯GetResourceStateä¹Ÿåªèƒ½åœ¨è§†é‡èŒƒå›´å†…
                     if (api.GetResourceState(i, j) > 0)
                     {
-                        // Ç°Íù¸ÃÎ»ÖÃ¸½½ü
-                        // ×¢Òâ£¡ÕâÀïGoPlace²»ÔÙÊÇwhileÑ­»·
+                        // å‰å¾€è¯¥ä½ç½®é™„è¿‘
+                        // æ³¨æ„ï¼è¿™é‡ŒGoPlaceä¸å†æ˜¯whileå¾ªç¯
                         bool temp = false;
                         for (int i_temp = 0; i_temp < 9 && temp == false; i_temp++)
                         {
@@ -486,14 +495,14 @@ void Judge(IShipAPI& api)
                             return;
                     }
                 }
-                // È±ÅĞ¶Ï²É¼¯»¹ÊÇ½¨ÔìµÄÌõ¼ş
-                if (map[i][j] == THUAI7::PlaceType::Construction)  // Ìí¼ÓÌõ¼ş£ºÎ´½¨Ôì¡£·ñÔòÒªÓÃproduce»òÕßattack
+                // ç¼ºåˆ¤æ–­é‡‡é›†è¿˜æ˜¯å»ºé€ çš„æ¡ä»¶
+                if (map[i][j] == THUAI7::PlaceType::Construction)  // æ·»åŠ æ¡ä»¶ï¼šæœªå»ºé€ ã€‚å¦åˆ™è¦ç”¨produceæˆ–è€…attack
                 {
-                    // GetConstructionHp¹¤³§ÂúÑª8000£¬ÉçÇø6000£¬±¤Àİ12000
-                    // ÏÖÔÚ²îÅĞ¶Ï½¨ÔìÊ²Ã´µÄËã·¨
-                    if (api.GetConstructionHp(i, j) < 8000)  // ¼Ù×°ÊÇ¹¤³§
+                    // GetConstructionHpå·¥å‚æ»¡è¡€8000ï¼Œç¤¾åŒº6000ï¼Œå ¡å’12000
+                    // ç°åœ¨å·®åˆ¤æ–­å»ºé€ ä»€ä¹ˆçš„ç®—æ³•
+                    if (api.GetConstructionHp(i, j) < 8000)  // å‡è£…æ˜¯å·¥å‚
                     {
-                        // Ç°Íù¸ÃÎ»ÖÃ¸½½ü
+                        // å‰å¾€è¯¥ä½ç½®é™„è¿‘
                         bool temp = false;
                         for (int i_temp = 0; i_temp < 9 && temp == false; i_temp++)
                         {
@@ -507,7 +516,7 @@ void Judge(IShipAPI& api)
             }
         }
     }
-    // È±ÉÙ×°±¸Ä£¿éµÄÌõ¼ş£¬º¯ÊıÒ²²»ÖªµÀÊÇÄÄ¸ö£¬»¹ÊÇËµÒªµ½¶ÔÏóÀïÃæĞ´£¿
+    // ç¼ºå°‘è£…å¤‡æ¨¡å—çš„æ¡ä»¶ï¼Œå‡½æ•°ä¹Ÿä¸çŸ¥é“æ˜¯å“ªä¸ªï¼Œè¿˜æ˜¯è¯´è¦åˆ°å¯¹è±¡é‡Œé¢å†™ï¼Ÿ
 }
 
 
@@ -516,12 +525,31 @@ std::vector<std::vector<int>> Get_Map(IShipAPI& api)
     auto map = api.GetFullMap();
     auto selfinfo = api.GetSelfInfo();
     int cellx = api.GridToCell(selfinfo->x);
+
+    if (selfinfo->teamID == 0)
+    {
+        home_vec.push_back(my_Home(3, 46, 1));
+        home_vec[0].x_4p = 3;
+        home_vec[0].y_4p = 47;
+        home_vec.push_back(my_Home(46, 3, 2));
+        home_vec[0].HP = api.GetHomeHp();
+    }
+    else if (selfinfo->teamID == 1)
+    {
+        home_vec.push_back(my_Home(46, 3, 1));
+        home_vec[0].x_4p = 46;
+        home_vec[0].y_4p = 4;
+        home_vec.push_back(my_Home(3, 46, 2));
+        home_vec[0].HP = api.GetHomeHp();
+    }
+
+
     for (int i = 0; i < map_size; i++)
     {
         for (int j = 0; j < map_size; j++)
         {
             if (map[i][j] == THUAI7::PlaceType::Space || map[i][j] == THUAI7::PlaceType::Shadow)
-            {  // ¿É¾­¹ıµÄµØµãÎª0£¬Ä¬ÈÏ(²»¿ÉÒÔÍ¾¾¶)Îª1
+            {  // å¯ç»è¿‡çš„åœ°ç‚¹ä¸º0ï¼Œé»˜è®¤(ä¸å¯ä»¥é€”å¾„)ä¸º1
                 Map_grid[i][j] = 0;
                 //std::string str_1 = "(" + std::to_string(i) + "," + std::to_string(j) + ")";
                 //api.Print(str_1);
@@ -589,20 +617,23 @@ std::vector<std::vector<int>> Get_Map(IShipAPI& api)
             }
         }
     }
-    if (cellx <= 25)
-    {
-        
-        home_vec.push_back(my_Home(3, 46, 1));
-        home_vec.push_back(my_Home(46, 3, 2));
-        home_vec[0].HP = api.GetHomeHp();
-    }
-    else if (cellx >= 27)
-    {
-        home_vec.push_back(my_Home(46, 3, 1));
-        home_vec.push_back(my_Home(3, 46, 2));
-        home_vec[0].HP = api.GetHomeHp();
-    }
 
+    int size = construction_vec.size();
+    int temp = 1000;
+    int number = -1;
+    for (int i = 0; i < size; i++)
+    {
+        if (construction_vec[i].home_dist < temp)
+        {
+            temp = construction_vec[i].home_dist;
+            number = i;
+        }
+    }
+    if (construction_vec[number].home_dist < 64)
+    {
+        closest_2_home = construction_vec[number];
+        api.Print("Get Consturction Point Closest to Home !\n Can Build Fort In This Place");
+    }
     api.Print("The Map Has Already Got !");
     return Map_grid;
 }
@@ -640,7 +671,7 @@ bool GoPlace(IShipAPI& api, int des_x, int des_y)
 
     std::vector<Point> path = findShortestPath(Map_grid, start, end, api);
     int path_size = path.size();
-    // ×¢ÊÍµÄÊÇÓÃÓÚÅĞ¶ÏÑ°Â·Ëã·¨ÎÈ¶¨ĞÔµÄ´úÂë
+    // æ³¨é‡Šçš„æ˜¯ç”¨äºåˆ¤æ–­å¯»è·¯ç®—æ³•ç¨³å®šæ€§çš„ä»£ç 
    // std::string str = std::to_string(path_size);
    // api.Print("This is the Size of the Path");
    // api.Print(str);
@@ -655,8 +686,8 @@ bool GoPlace(IShipAPI& api, int des_x, int des_y)
     bool temp = false;
     for (int j = 0; j < path_size - 1; j++)
     {
-        if (j % 5 == 0)
-        {   // Ã¿ÒÆ¶¯Îå´Î½øĞĞÒ»´ÎGoCell
+        if (j % 6 == 0)
+        {   // æ¯ç§»åŠ¨å…­æ¬¡è¿›è¡Œä¸€æ¬¡GoCell
             GoCell(api);
         }
         if (direction[j].x == -1)
@@ -718,18 +749,18 @@ bool isValid(IShipAPI& api, int x, int y)
 
 const std::vector<Point> findShortestPath(const std::vector<std::vector<int>>& grid, Point start, Point end, IShipAPI& api)
 {
-    // ¼ÇÂ¼Ã¿¸öµãÊÇ·ñ±»·ÃÎÊ¹ı
+    // è®°å½•æ¯ä¸ªç‚¹æ˜¯å¦è¢«è®¿é—®è¿‡
     std::vector<std::vector<bool>> visited(map_size, std::vector<bool>(map_size, false));
-    // ¼ÇÂ¼Ã¿¸öµãµÄÇ°Çı½Úµã£¬ÓÃÓÚ×îºó·´Ïò»ØËİÂ·¾¶
+    // è®°å½•æ¯ä¸ªç‚¹çš„å‰é©±èŠ‚ç‚¹ï¼Œç”¨äºæœ€ååå‘å›æº¯è·¯å¾„
     std::vector<std::vector<Point>> parent(map_size, std::vector<Point>(map_size, {-1, -1}));
-    // ´´½¨Ò»¸ö¶ÓÁĞÓÃÓÚBFS
+    // åˆ›å»ºä¸€ä¸ªé˜Ÿåˆ—ç”¨äºBFS
     std::queue<Point> q;
 
-    // ½«Æğµã±ê¼ÇÎªÒÑ·ÃÎÊ£¬²¢¼ÓÈë¶ÓÁĞ
+    // å°†èµ·ç‚¹æ ‡è®°ä¸ºå·²è®¿é—®ï¼Œå¹¶åŠ å…¥é˜Ÿåˆ—
     visited[start.x][start.y] = true;
     q.push(start);
 
-    // ´´½¨Ò»¸öÂ·¾¶vector
+    // åˆ›å»ºä¸€ä¸ªè·¯å¾„vector
     std::vector<Point> Path;
 
     // BFS
@@ -738,19 +769,19 @@ const std::vector<Point> findShortestPath(const std::vector<std::vector<int>>& g
         Point current = q.front();
         q.pop();
 
-        // Èç¹ûµ±Ç°µãÊÇÖÕµã£¬ËµÃ÷ÒÑÕÒµ½Â·¾¶£¬Í£Ö¹ËÑË÷
+        // å¦‚æœå½“å‰ç‚¹æ˜¯ç»ˆç‚¹ï¼Œè¯´æ˜å·²æ‰¾åˆ°è·¯å¾„ï¼Œåœæ­¢æœç´¢
         if ((current.x == end.x) && (current.y == end.y))
         {
             break;
         }
 
-        // ±éÀúµ±Ç°µãµÄËÄ¸ö·½Ïò
+        // éå†å½“å‰ç‚¹çš„å››ä¸ªæ–¹å‘
         for (int i = 0; i < 4; ++i)
         {
             int newX = current.x + dx[i];
             int newY = current.y + dy[i];
 
-            // Èç¹ûĞÂ×ø±êÔÚµØÍ¼·¶Î§ÄÚÇÒÎ´·ÃÎÊ¹ıÇÒ²»ÊÇÕÏ°­Îï£¬Ôò¼ÓÈë¶ÓÁĞ
+            // å¦‚æœæ–°åæ ‡åœ¨åœ°å›¾èŒƒå›´å†…ä¸”æœªè®¿é—®è¿‡ä¸”ä¸æ˜¯éšœç¢ç‰©ï¼Œåˆ™åŠ å…¥é˜Ÿåˆ—
             if (isValid(api, newX, newY) && !visited[newX][newY] && (grid[newX][newY] == 0))
             {
                 visited[newX][newY] = true;
@@ -762,7 +793,7 @@ const std::vector<Point> findShortestPath(const std::vector<std::vector<int>>& g
         }
     }
 
-    // »ØËİÂ·¾¶
+    // å›æº¯è·¯å¾„
     if (visited[end.x][end.y])
     {
         Point current = end;
@@ -820,8 +851,8 @@ bool Path_Release(std::vector<Point> Path, IShipAPI& api, int count)
 }
 
 void Get_Resource(IShipAPI& api)
-{   // ½øĞĞÈ«×Ô¶¯×ÊÔ´¿ª²É£¬Ö±µ½°Ñ±¾·½µØÍ¼ÉÏËùÓĞ×ÊÔ´¿ª²ÉÍêÎªÖ¹
-    // ²»×ãÖ®´¦£ºÒÔxÎª±äÁ¿±éÀú£¬¿ÉÄÜºÄÊ±½Ï³¤£¬µ«ÊÇsortÖØÅÅÒ²²»·½±ã
+{   // è¿›è¡Œå…¨è‡ªåŠ¨èµ„æºå¼€é‡‡ï¼Œç›´åˆ°æŠŠæœ¬æ–¹åœ°å›¾ä¸Šæ‰€æœ‰èµ„æºå¼€é‡‡å®Œä¸ºæ­¢
+    // ä¸è¶³ä¹‹å¤„ï¼šä»¥xä¸ºå˜é‡éå†ï¼Œå¯èƒ½è€—æ—¶è¾ƒé•¿ï¼Œä½†æ˜¯sorté‡æ’ä¹Ÿä¸æ–¹ä¾¿
     auto selfinfo = api.GetSelfInfo();
     int gridx = selfinfo->x;
     int gridy = selfinfo->y;
@@ -844,12 +875,12 @@ void Get_Resource(IShipAPI& api)
             int state = api.GetResourceState(x, y);
             int count = 0;
             while (state > 0)
-            {   // Ö»Òª»¹ÓĞÊ£Óà×ÊÔ´¾Í¿ª²É
+            {   // åªè¦è¿˜æœ‰å‰©ä½™èµ„æºå°±å¼€é‡‡
                 api.Produce();
                 count++;
                 if (count % 10 == 0)
                 {
-                    // Ã¿Ê®´Î½øĞĞÒ»´ÎÅĞ¶ÏÓë·µ»Ø
+                    // æ¯åæ¬¡è¿›è¡Œä¸€æ¬¡åˆ¤æ–­ä¸è¿”å›
                     api.Wait();
                     state = api.GetResourceState(x, y);
                     resource_vec[i].HP = state;
@@ -912,18 +943,20 @@ void Build_ALL(IShipAPI& api, THUAI7::ConstructionType type)
     }
 }
 
-void Construct_Module(ITeamAPI& api, int shipno, int limit, int type)
+void Construct_Module(ITeamAPI& api, int shipno, int type)
 {
-    auto constructtype = api.GetShips()[shipno]->constructorType;
+    auto ships = api.GetShips();
+    auto constructtype = ships[shipno-1]->constructorType;
+
     int energy = api.GetEnergy();
-    if (energy < limit)
+    if (energy < 4000 || (ships[shipno-1]->shipType != THUAI7::ShipType::CivilianShip && ships[shipno-1]->shipType != THUAI7::ShipType::FlagShip))
     {
         return;
     }
     switch (type)
     {
         case 2 :
-            if (constructtype == THUAI7::ConstructorType::Constructor1)
+            if (energy > 4000)
             {
                 api.InstallModule(shipno, THUAI7::ModuleType::ModuleConstructor2);
             }
@@ -931,7 +964,7 @@ void Construct_Module(ITeamAPI& api, int shipno, int limit, int type)
             break;
 
         case 3 :
-            if (constructtype != THUAI7::ConstructorType::Constructor3)
+            if (energy > 8000)
             {
                 api.InstallModule(shipno, THUAI7::ModuleType::ModuleConstructor3);
             }
@@ -941,23 +974,24 @@ void Construct_Module(ITeamAPI& api, int shipno, int limit, int type)
     return;
 }
 
-void Produce_Module(ITeamAPI& api, int shipno, int limit, int type)
+void Produce_Module(ITeamAPI& api, int shipno, int type)
 {
-    if (api.GetShips()[shipno-1] == nullptr)
+    auto ships = api.GetShips();
+    if (ships[shipno - 1] == nullptr || (ships[shipno-1]->shipType != THUAI7::ShipType::CivilianShip&& ships[shipno-1]->shipType != THUAI7::ShipType::FlagShip))
     {
         return;
     }
-    auto producetype = api.GetShips()[shipno-1]->producerType;
+    auto producetype = ships[shipno-1]->producerType;
     int energy = api.GetEnergy();
     switch (type)
     {
         case 2:
-            if (producetype == THUAI7::ProducerType::Producer1 && energy > limit)
+            if (producetype == THUAI7::ProducerType::Producer1 && energy > 4000)
             {   
                 api.InstallModule(shipno, THUAI7::ModuleType::ModuleProducer2);
             }
         case 3:
-            if (producetype != THUAI7::ProducerType::Producer3 && energy > limit)
+            if (producetype != THUAI7::ProducerType::Producer3 && energy > 8000)
             {
                 api.InstallModule(shipno, THUAI7::ModuleType::ModuleProducer3);
             }
@@ -1011,6 +1045,42 @@ void Build_Ship(ITeamAPI& api, int shipno, int birthdes)
         {
             api.Print("No Enough Money!");
         }
+    }
+    return;
+}
+void Build_Specific(IShipAPI& api, THUAI7::ConstructionType type, my_Construction construction)
+{
+    GoPlace_Loop(api, construction.x_4c, construction.y_4c);
+    bool temp;
+    int count = 0;
+    int IntendedHp = 6000;
+    int hp = api.GetConstructionHp(construction.x, construction.y);
+    if (type == THUAI7::ConstructionType::Factory)
+    {
+        IntendedHp = 8000;
+    }
+    else if (type == THUAI7::ConstructionType::Fort)
+    {
+        IntendedHp = 12000;
+    }
+    else if (type == THUAI7::ConstructionType::Community)
+    {
+        IntendedHp = 6000;
+    }
+    while (hp < IntendedHp)
+    {
+        count++;
+        api.Construct(type);
+        if (count % 10 == 0)
+        {
+            api.Wait();
+            hp = api.GetConstructionHp(construction.x, construction.y);
+            count = 0;
+        }
+    }
+    if (hp == IntendedHp)
+    {
+        api.Print("Construct Successfully Finished !");
     }
     return;
 }
