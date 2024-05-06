@@ -599,6 +599,11 @@ std::vector<std::vector<int>> Get_Map(IShipAPI& api)
                         {
                             Map_grid[i][j] = 1;
                         }
+                        else
+                        {
+                            Map_grid[i][j] = 0;
+                        }
+
                     }
                 }
                 else
