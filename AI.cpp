@@ -566,26 +566,44 @@ std::vector<std::vector<int>> Get_Map(IShipAPI& api)
     {
         for (int j = 0; j < map_size; j++)
         {
-            if (map[i][j] == THUAI7::PlaceType::Space || map[i][j] == THUAI7::PlaceType::Shadow || map[i][j] == THUAI7::PlaceType::Shadow)
+            if (map[i][j] == THUAI7::PlaceType::Space || map[i][j] == THUAI7::PlaceType::Shadow || map[i][j] == THUAI7::PlaceType::Wormhole)
             {  // 可经过的地点为0，默认(不可以途径)为1
-                Map_grid[i][j] = 0;
-                //std::string str_1 = "(" + std::to_string(i) + "," + std::to_string(j) + ")";
-                //api.Print(str_1);
-                if (map[i][j] == THUAI7::PlaceType::Wormhole)
+                if (map[i][j] == THUAI7::PlaceType::Space || map[i][j] == THUAI7::PlaceType::Shadow)
                 {
-                    auto hp = api.GetWormholeHp(i, j);
-                    wormhole_vec.push_back(my_Wormhole(i,j,hp));
-
-                    if (hp > 9000)
-                    {
-                        Map_grid[i][j] = 0;
-                    }
-
-                    std::string str_1 = "WormHole Found : (" + std::to_string(i) + "," + std::to_string(j) + ")\n";
-                    std::string str_2 = "WormHole HP :" + std::to_string(hp) + "\n";
-                    api.Print(str_1);
-                    api.Print(str_2);
+                    Map_grid[i][j] = 0;
+                    continue;
                 }
+                auto hp = api.GetWormholeHp(i, j);
+                if (j == 24 || j == 25)
+                {
+                    if (hp == -1)
+                    {
+                        wormhole_vec.push_back(my_Wormhole(i, j, 18000));
+                        Map_grid[i][j] == 0;
+                        hp = 18000;
+                    }
+                    else
+                    {
+                        wormhole_vec.push_back(my_Wormhole(i, j, hp));
+                        if (hp <= 9000)
+                        {
+                            Map_grid[i][j] = 1;
+                        }
+                    }
+                }
+                else
+                {
+                    wormhole_vec.push_back(my_Wormhole(i, j, hp));
+                    if (hp <= 9000)
+                    {
+                        Map_grid[i][j] = 1;
+                    }
+                }
+                std::string str_1 = "WormHole Found : (" + std::to_string(i) + "," + std::to_string(j) + ")\n";
+                std::string str_2 = "WormHole HP :" + std::to_string(hp) + "\n";
+                api.Print(str_1);
+                api.Wait();
+                api.Print(str_2);
             }
             else if (map[i][j] == THUAI7::PlaceType::Resource)
             {
