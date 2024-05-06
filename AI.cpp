@@ -155,6 +155,8 @@ void Base_Operate(ITeamAPI& api);                  // 基地的操作
 void AttackShip(IShipAPI& api);                    // 攻击敌方船只
 void Install_Module(ITeamAPI& api, int number, int type);  // 为船只安装模块 1:Attack 2:Construct 3:Comprehensive
 bool GoCell(IShipAPI& api);                        // 移动到cell中心
+bool attack(IShipAPI& api);                                // 防守反击+判断敌人
+void hide(IShipAPI& api);                                  // 丝血隐蔽
 
 
 // 以下是寻路相关的函数
@@ -426,9 +428,57 @@ void AttackShip(IShipAPI& api)
         api.Attack(angle0);
     }
 }
-void Judge(IShipAPI& api)
+
+void hide(IShipAPI& api)
 {
-    // 进行判断，讨论应当进行什么操作，攻击还是获取资源
+    int gridx = api.GetSelfInfo()->x;
+    int gridy = api.GetSelfInfo()->y;
+    int cellx = api.GridToCell(gridx);
+    int celly = api.GridToCell(gridy);
+    auto map = api.GetFullMap();
+    int HP = api.GetSelfInfo()->hp;
+
+    auto enemyships = api.GetEnemyShips();
+    int size = enemyships.size();
+    // 下面是丝血隐蔽（进shadow）
+    for (int i = cellx - 10 < 0 ? 0 : cellx - 10; i < (cellx + 11 > 50 ? 50 && map[cellx][celly]!=THUAI7::PlaceType::Shadow : cellx + 11); i++)  // 需要加逃离敌人+到视野外判断
+    {
+        for (int j = celly - sqrt(10 * 10 - (i - cellx) * (i - cellx)) < 0 ? 0 : celly - sqrt(10 * 10 - (i - cellx) * (i - cellx)); j < (celly + sqrt(10 * 10 - (i - cellx) * (i - cellx)) + 1 > 50 ? 50 : celly + sqrt(10 * 10 - (i - cellx) * (i - cellx)) + 1); j++)
+        {
+            if (map[i][j] == THUAI7::PlaceType::Shadow)
+            {
+                GoPlace_Loop(api, i, j);
+                api.Wait();
+                enemyships = api.GetEnemyShips();
+                gridx = api.GetSelfInfo()->x;
+                gridy = api.GetSelfInfo()->y;
+                cellx = api.GridToCell(gridx);
+                celly = api.GridToCell(gridy);
+                size = enemyships.size();
+                if (size && map[cellx][celly] != THUAI7::PlaceType::Shadow)  // 或者underattack，在想判定
+                    return hide(api);
+                else
+                    return;
+            }
+        }
+    }
+    if(size)
+    {
+        auto Enemy1x = enemyships[0]->x;
+        auto Enemy1y = enemyships[0]->y;
+        int dis1x = Enemy1x - gridx;
+        int dis1y = Enemy1y - gridy;
+        double angle1 = atan(dis1y / dis1x);
+        double distance1 = dis1x * dis1x + dis1y * dis1y;
+        GoPlace(api,cellx+(int)((8-distance1) * cos(angle1+pi)), celly+(int)((8-distance1) * sin(angle1+pi)));
+    }
+        // 以下是告知base要装装备，要定义全局变量传递信息，base内的函数可以再进行判断和决策，信息传递要加逻辑和判断
+        /* modl1.number = api.GetSelfInfo()->playerID;
+        modl1.moduletype = THUAI7::ModuleType::ModuleShield3;*/
+}
+
+bool attack(IShipAPI& api)  // 正在改，缺陷还很多
+{
     int gridx = api.GetSelfInfo()->x;
     int gridy = api.GetSelfInfo()->y;
     int cellx = api.GridToCell(gridx);
@@ -438,87 +488,55 @@ void Judge(IShipAPI& api)
 
     auto enemyships = api.GetEnemyShips();
     int totalenenmyhp = 0;
-    for (int i = 0; enemyships[i] != nullptr; i++)
+    int size = enemyships.size();
+
+    for (int i = 0; i<size; i++)
         totalenenmyhp += enemyships[i]->hp;
-    // 下面是丝血隐蔽（进shadow）
-    if (HP < 1000 && totalenenmyhp > HP)  // 条件可能还要改
+
+    if (size)       //要增加shadow中受攻击的条件
     {
-        for (int i = cellx - 8 < 0 ? 0 : cellx - 8; i < (cellx + 9 > 50 ? 50 : cellx + 9); i++)
+        if (HP < 2000 && totalenenmyhp > HP && map[cellx][celly]!=THUAI7::PlaceType::Shadow)  // 条件可能还要改，丝血隐蔽
         {
-            for (int j = celly - sqrt(8 * 8 - (i - cellx) * (i - cellx)) < 0 ? 0 : celly - sqrt(8 * 8 - (i - cellx) * (i - cellx)); j < (celly + sqrt(8 * 8 - (i - cellx) * (i - cellx)) + 1 > 50 ? 50 : celly + sqrt(8 * 8 - (i - cellx) * (i - cellx)) + 1); j++)
-            {
-                if (map[i][j] == THUAI7::PlaceType::Shadow)
-                    GoPlace(api, i, j);
-            }
+            hide(api);
+            api.Wait();
         }
-        // 以下是告知base要装装备，要定义全局变量传递信息，base内的函数可以再进行判断和决策，信息传递要加逻辑和判断
-        modl1.number = api.GetSelfInfo()->playerID;
-        modl1.moduletype = THUAI7::ModuleType::ModuleShield3;
-    }
-    // 攻击
-    if (enemyships[0] != nullptr)
-    {
+        // 攻击
         if (api.GetSelfInfo()->weaponType != THUAI7::WeaponType::NullWeaponType)
         {
             AttackShip(api);
-            return;
         }
         else
-            ;  // 暂时空着，后面用逃离函数替代，可能与上面丝血隐蔽合并代码
+        {
+            hide(api);  // 暂时空着，后面用逃离函数替代，可能与上面丝血隐蔽合并代码
+        }
+        return false;
     }
+    else
+        return true;
+}
+
+void Judge(IShipAPI& api)  // 攻击判断不写在judge里，改为在采集/建造函数内部判断，但移动过程怎么办，写移动里面可能会死循环
+{
+    // 进行判断，讨论应当进行什么操作，攻击还是获取资源
+    int gridx = api.GetSelfInfo()->x;
+    int gridy = api.GetSelfInfo()->y;
+    int cellx = api.GridToCell(gridx);
+    int celly = api.GridToCell(gridy);
+    auto map = api.GetFullMap();
+    int HP = api.GetSelfInfo()->hp;
 
     // 资源&建造(To Be Edited)
     //  map 是整个地图的(cell坐标) 也就是说[i][j]的取值在0-49(50*50个格子)
     //  目前搜索范围和视野范围一样
     if (api.GetSelfInfo()->shipType == THUAI7::ShipType::CivilianShip || api.GetSelfInfo()->shipType == THUAI7::ShipType::FlagShip)
     {
-        for (int i = cellx - 8 < 0 ? 0 : cellx - 8; i < (cellx + 9 > 50 ? 50 : cellx + 9); i++)
-        {
-            for (int j = celly - sqrt(8 * 8 - (i - cellx) * (i - cellx)) < 0 ? 0 : celly - sqrt(8 * 8 - (i - cellx) * (i - cellx)); j < (celly + sqrt(8 * 8 - (i - cellx) * (i - cellx)) + 1 > 50 ? 50 : celly + sqrt(8 * 8 - (i - cellx) * (i - cellx)) + 1); j++)
-            {
-                if (map[i][j] == THUAI7::PlaceType::Resource)
-                {
-                    // 这里不清楚GetResourceState到底返回了啥？
-                    // 是一个int_32但是不知道表示的什么意思(表示的是Hp,随着开采减小)
-                    // 但是GetResourceState也只能在视野范围内
-                    if (api.GetResourceState(i, j) > 0)
-                    {
-                        // 前往该位置附近
-                        // 注意！这里GoPlace不再是while循环
-                        bool temp = false;
-                        for (int i_temp = 0; i_temp < 9 && temp == false; i_temp++)
-                        {
-                            temp = GoPlace(api, i - 1 + i_temp, j - 1 + i_temp);
-                        }
-                        api.Produce();
-                        if (temp)
-                            return;
-                    }
-                }
-                // 缺判断采集还是建造的条件
-                if (map[i][j] == THUAI7::PlaceType::Construction)  // 添加条件：未建造。否则要用produce或者attack
-                {
-                    // GetConstructionHp工厂满血8000，社区6000，堡垒12000
-                    // 现在差判断建造什么的算法
-                    if (api.GetConstructionHp(i, j) < 8000)  // 假装是工厂
-                    {
-                        // 前往该位置附近
-                        bool temp = false;
-                        for (int i_temp = 0; i_temp < 9 && temp == false; i_temp++)
-                        {
-                            temp = GoPlace(api, i - 1 + i_temp, j - 1 + i_temp);
-                        }
-                        api.Construct(THUAI7::ConstructionType::Factory);
-                        if (temp)
-                            return;
-                    }
-                }
-            }
-        }
+        if (true)
+            Get_Resource(api);
+        else
+            Build_ALL(api,THUAI7::ConstructionType::Factory);
     }
     // 缺少装备模块的条件，函数也不知道是哪个，还是说要到对象里面写？
 }
-
 
 std::vector<std::vector<int>> Get_Map(IShipAPI& api)
 {
@@ -640,6 +658,14 @@ std::vector<std::vector<int>> Get_Map(IShipAPI& api)
 
 bool GoPlace(IShipAPI& api, int des_x, int des_y)
 {
+    if (des_x < 0)
+        return GoPlace(api, 0, des_y);
+    if (des_x >= 50)
+        return GoPlace(api, 49, des_y);
+    if (des_y < 0)
+        return GoPlace(api, des_x, 0);
+    if (des_y >= 50)
+        return GoPlace(api, des_x, 49);
     api.Wait();
     auto selfinfo = api.GetSelfInfo();
     int cur_gridx = selfinfo->x;
@@ -672,42 +698,43 @@ bool GoPlace(IShipAPI& api, int des_x, int des_y)
     std::vector<Point> path = findShortestPath(Map_grid, start, end, api);
     int path_size = path.size();
     // 注释的是用于判断寻路算法稳定性的代码
-   // std::string str = std::to_string(path_size);
-   // api.Print("This is the Size of the Path");
-   // api.Print(str);
+    // std::string str = std::to_string(path_size);
+    // api.Print("This is the Size of the Path");
+    // api.Print(str);
     for (int i = 0; i < path_size - 1; i++)
     {
         direction[i] = Point{
             path[i + 1].x - path[i].x,
-            path[i + 1].y - path[i].y};
+            path[i + 1].y - path[i].y
+        };
     }
-   // api.Print("Got the Direction of the PATH !");
-   // api.Wait();
+    // api.Print("Got the Direction of the PATH !");
+    // api.Wait();
     bool temp = false;
     for (int j = 0; j < path_size - 1; j++)
     {
         if (j % 6 == 0)
-        {   // 每移动六次进行一次GoCell
+        {  // 每移动六次进行一次GoCell
             GoCell(api);
         }
         if (direction[j].x == -1)
         {
-            api.MoveUp(1000/speed);
+            api.MoveUp(1000 / speed);
             std::this_thread::sleep_for(std::chrono::seconds(1));
         }
         else if (direction[j].x == 1)
         {
-            api.MoveDown(1000/speed);
+            api.MoveDown(1000 / speed);
             std::this_thread::sleep_for(std::chrono::seconds(1));
         }
         else if (direction[j].y == -1)
         {
-            api.MoveLeft(1000/speed);
+            api.MoveLeft(1000 / speed);
             std::this_thread::sleep_for(std::chrono::seconds(1));
         }
         else
         {
-            api.MoveRight(1000/speed);
+            api.MoveRight(1000 / speed);
             std::this_thread::sleep_for(std::chrono::seconds(1));
         }
     }
@@ -723,6 +750,7 @@ bool GoPlace(IShipAPI& api, int des_x, int des_y)
     }
     return false;
 }
+
 void GoPlace_Loop(IShipAPI& api, int des_x, int des_y)
 {
     bool temp = false;
@@ -874,7 +902,7 @@ void Get_Resource(IShipAPI& api)
             GoPlace_Loop(api, resource_vec[i].x_4p, resource_vec[i].y_4p);
             int state = api.GetResourceState(x, y);
             int count = 0;
-            while (state > 0)
+            while (state > 0&&attack(api))
             {   // 只要还有剩余资源就开采
                 api.Produce();
                 count++;
@@ -927,7 +955,7 @@ void Build_ALL(IShipAPI& api, THUAI7::ConstructionType type)
             if (Hp < IntendedHp)
             {
                 int count = 0;
-                while (Hp < IntendedHp)
+                while (Hp < IntendedHp&&attack(api))
                 {
                     api.Construct(type);  
                     count++;
