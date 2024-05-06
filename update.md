@@ -289,3 +289,15 @@ void Build_Ship(ITeamAPI& api, int shipno, int birthdes);
 void GoPlace_Loop(IShipAPI& api,int des_x,int des_y);
 ```
 实践证明一般十次都可以到达目的地
+
+# 5/6 Update
+
+## 1.更新Get_Map函数
+
+* 通过teamID来判断自己的家在哪
+### 更新 my_Home
+* 新设定了两个位置 x_4p y_4p 用来回防的点位
+* 会获取离Base最近且距离小于8000的点位 这个点位可以用来建造Fort
+  
+## 2.Build_Specific更新，在选定的位置建设选定建筑物
+## 3.Produce_Module / Construct_Module更新，删去了limit参数，改为函数内部判断能否安装模组
