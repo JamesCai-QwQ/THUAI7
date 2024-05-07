@@ -6,6 +6,7 @@
 #include "AI.h"
 #include "constants.h"
 #include <math.h>
+#include <algorithm>
 
 #define pi 3.14159265358979323846
 // 注意不要使用conio.h，Windows.h等非标准库
@@ -255,7 +256,18 @@ void AI::play(ITeamAPI& api)  // 默认team playerID 为0
     Base_Operate(api);
     api.PrintSelfInfo();
     api.PrintTeam();
+
+    // 二号船装采集模块
+    // 三号船装建造模块
     Produce_Module(api, 1, 3);
+    Construct_Module(api, 2, 3);
+
+    // 按照ShipTypeDict定义的船型
+    // 在出生点位0(默认)进行建造
+    Build_Ship(api, 2, 0);
+    Build_Ship(api, 3, 0);
+    Build_Ship(api, 4, 0);
+
 }
 
 
@@ -308,22 +320,22 @@ bool GoCell(IShipAPI& api)
         if (Gcellx < gridx)
         {
             api.MoveUp((gridx - Gcellx)/speed);
-            std::this_thread::sleep_for(std::chrono::seconds(1));
+            std::this_thread::sleep_for(std::chrono::milliseconds(40));
         }
         else if (Gcellx > gridx)
         {
             api.MoveDown((Gcellx - gridx)/speed);
-            std::this_thread::sleep_for(std::chrono::seconds(1));
+            std::this_thread::sleep_for(std::chrono::milliseconds(40));
         }
         if (Gcelly < gridy)
         {
             api.MoveLeft((gridy - Gcelly)/speed);
-            std::this_thread::sleep_for(std::chrono::seconds(1));
+            std::this_thread::sleep_for(std::chrono::milliseconds(40));
         }
         else if (Gcelly > gridy)
         {
             api.MoveRight((Gcelly - gridy)/speed);
-            std::this_thread::sleep_for(std::chrono::seconds(1));
+            std::this_thread::sleep_for(std::chrono::milliseconds(40));
         }
     }
     api.Wait();
@@ -378,23 +390,23 @@ void Install_Module(ITeamAPI& api, int number, int type)
     {
         // 一号类型装备(Attack)
         api.InstallModule(number, THUAI7::ModuleType::ModuleMissileGun);
-        std::this_thread::sleep_for(std::chrono::seconds(1));
+        std::this_thread::sleep_for(std::chrono::milliseconds(40));
         api.InstallModule(number, THUAI7::ModuleType::ModuleArmor2);
     }
     else if (type == 2)
     {
         // 二号类型装备(Construct)
         api.InstallModule(number, THUAI7::ModuleType::ModuleArmor1);
-        std::this_thread::sleep_for(std::chrono::seconds(1));
+        std::this_thread::sleep_for(std::chrono::milliseconds(40));
         api.InstallModule(number, THUAI7::ModuleType::ModuleConstructor2);
     }
     else if (type == 3)
     {
         // 三号类型装备(Comprehensive)
         api.InstallModule(number, THUAI7::ModuleType::ModuleArcGun);
-        std::this_thread::sleep_for(std::chrono::seconds(1));
+        std::this_thread::sleep_for(std::chrono::milliseconds(40));
         api.InstallModule(number, THUAI7::ModuleType::ModuleArmor1);
-        std::this_thread::sleep_for(std::chrono::seconds(1));
+        std::this_thread::sleep_for(std::chrono::milliseconds(40));
         api.InstallModule(number, THUAI7::ModuleType::ModuleConstructor1);
     }
     return;
@@ -778,22 +790,22 @@ bool GoPlace(IShipAPI& api, int des_x, int des_y)
         if (direction[j].x == -1)
         {
             api.MoveUp(1000 / speed);
-            std::this_thread::sleep_for(std::chrono::seconds(1));
+            std::this_thread::sleep_for(std::chrono::milliseconds(40));
         }
         else if (direction[j].x == 1)
         {
             api.MoveDown(1000 / speed);
-            std::this_thread::sleep_for(std::chrono::seconds(1));
+            std::this_thread::sleep_for(std::chrono::milliseconds(40));
         }
         else if (direction[j].y == -1)
         {
             api.MoveLeft(1000 / speed);
-            std::this_thread::sleep_for(std::chrono::seconds(1));
+            std::this_thread::sleep_for(std::chrono::milliseconds(40));
         }
         else
         {
             api.MoveRight(1000 / speed);
-            std::this_thread::sleep_for(std::chrono::seconds(1));
+            std::this_thread::sleep_for(std::chrono::milliseconds(40));
         }
     }
     GoCell(api);
@@ -916,22 +928,22 @@ bool Path_Release(std::vector<Point> Path, IShipAPI& api, int count)
     if (delta_x == -1)
     {
         api.MoveUp(1000 / SPEED_CIVIL_MS);
-        std::this_thread::sleep_for(std::chrono::seconds(1));
+        std::this_thread::sleep_for(std::chrono::milliseconds(40));
     }
     else if (delta_x == 1)
     {
         api.MoveDown(1000);
-        std::this_thread::sleep_for(std::chrono::seconds(1));
+        std::this_thread::sleep_for(std::chrono::milliseconds(40));
     }
     else if (delta_y == 1)
     {
         api.MoveRight(1000);
-        std::this_thread::sleep_for(std::chrono::seconds(1));
+        std::this_thread::sleep_for(std::chrono::milliseconds(40));
     }
     else if (delta_y == -1)
     {
         api.MoveLeft(1000);
-        std::this_thread::sleep_for(std::chrono::seconds(1));
+        std::this_thread::sleep_for(std::chrono::milliseconds(40));
     }
     return false;
 }
@@ -951,14 +963,20 @@ void Get_Resource(IShipAPI& api)
         api.Print("Please Get Resource ! ");
         return;
     }
+    int distance;
+    int temp;
+    int order;
+    
     for (int i = 0; i < size; i++)
     {
         int x = resource_vec[i].x;
         int y = resource_vec[i].y;
+        
         if ((cellx <= 25 && x <= 25) || (cellx >= 27 && x >= 27))
         {
             GoPlace_Loop(api, resource_vec[i].x_4p, resource_vec[i].y_4p);
             int state = api.GetResourceState(x, y);
+            api.Print(std::to_string(state));
             int count = 0;
             while (state > 0&&attack(api))
             {   // 只要还有剩余资源就开采
