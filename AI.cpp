@@ -410,56 +410,49 @@ void AttackShip(IShipAPI& api)
     int size = Enemys.size();
     // atan是math.h里面的函数(反三角正切)
     // 用于得到敌方船只的方位
-    auto Enemy0x = Enemys[0]->x;
-    auto Enemy0y = Enemys[0]->y;
-    int dis0x = Enemy0x - gridx;
-    int dis0y = Enemy0y - gridy;
-    double angle0;
-    if (dis0x == 0)
-        if (dis0y > 0)
-            angle0 = pi / 2;
-        else
-            angle0 = -pi / 2;
-    else if (dis0x > 0)
-        angle0 = atan(dis0y / dis0x);
-    else
-        angle0 = atan(dis0y / dis0x) + pi;
-    double distance0 = dis0y * dis0y + dis0x * dis0x;
-
-    // 两个船都在视野内
-    if (size != 1)
+    int* Enemyx = new int[size];
+    int* Enemyy = new int[size];
+    int* disx = new int[size];
+    int* disy = new int[size];
+    double* angle = new double[size];
+    double* distance = new double[size];
+    for (int i = 0; i < size; i++)
     {
-        auto Enemy1x = Enemys[1]->x;
-        auto Enemy1y = Enemys[1]->y;
-        int dis1x = Enemy1x - gridx;
-        int dis1y = Enemy1y - gridy;
-        double angle1;
-        if (dis1x == 0)
-            if (dis1y > 0)
-                angle1 = pi / 2;
+        Enemyx[i] = Enemys[i]->x;
+        Enemyy[i] = Enemys[i]->y;
+        disx[i] = Enemyx[i] - gridx;
+        disy[i] = Enemyy[i] - gridy;
+        if (disx[i] == 0)
+            if (disy[i] > 0)
+                angle[i] = pi / 2;
             else
-                angle1 = -pi / 2;
-        else if (dis1x > 0)
-            angle1 = atan(dis1y / dis1x);
+                angle[i] = -pi / 2;
+        else if (disx[i] > 0)
+            angle[i] = atan(disy[i] / disx[i]);
         else
-            angle1 = atan(dis1y / dis1x) + pi;
-        double distance1 = dis1x * dis1x + dis1y * dis1y;
+            angle[i] = atan(disy[i] / disx[i]) + pi;
+        distance[i] = disy[i] * disy[i] + disx[i] * disx[i];
+    }
 
-        // 优先攻击临近的船只
-        if (distance1 <= distance0)
-        {
-            api.Attack(angle1);
-        }
-        else
-        {
-            api.Attack(angle0);
-        }
-    }
-    else
+    // 先攻击视野内近的
+    int flag = -1;
+    for (int i = 0; i < size; i++)
     {
-        // 只有一个船
-        api.Attack(angle0);
+        if (Enemys[i] == nullptr)
+            continue;
+        else if (flag == -1)
+            flag = i;
+        else if (distance[i] < distance[flag])
+            flag = i;
     }
+    if (flag != -1)
+        api.Attack(angle[flag]);
+    delete[] distance;
+    delete[] angle;
+    delete[] disy;
+    delete[] disx;
+    delete[] Enemyy;
+    delete[] Enemyx;
 }
 
 void hide(IShipAPI& api)
@@ -473,8 +466,17 @@ void hide(IShipAPI& api)
 
     auto enemyships = api.GetEnemyShips();
     int size = enemyships.size();
+    bool enemyflag = false;
+    int first_en=-1;
+    for (int i = 0; i < size; i++)
+        if (enemyships[i] != nullptr)
+        {
+            enemyflag = true;
+            first_en = i;
+            break;
+        }
     // 下面是丝血隐蔽（进shadow）
-    for (int i = cellx - 10 < 0 ? 0 : cellx - 10; i < (cellx + 11 > 50 ? 50 && map[cellx][celly]!=THUAI7::PlaceType::Shadow : cellx + 11); i++)  // 需要加逃离敌人+到视野外判断
+    for (int i = cellx - 10 < 0 ? 0 : cellx - 10; i < (cellx + 11 > 50 ? 50 : cellx + 11)&& map[cellx][celly]!=THUAI7::PlaceType::Shadow ; i++)  // 需要加逃离敌人+到视野外判断
     {
         for (int j = celly - sqrt(10 * 10 - (i - cellx) * (i - cellx)) < 0 ? 0 : celly - sqrt(10 * 10 - (i - cellx) * (i - cellx)); j < (celly + sqrt(10 * 10 - (i - cellx) * (i - cellx)) + 1 > 50 ? 50 : celly + sqrt(10 * 10 - (i - cellx) * (i - cellx)) + 1); j++)
         {
@@ -488,21 +490,28 @@ void hide(IShipAPI& api)
                 cellx = api.GridToCell(gridx);
                 celly = api.GridToCell(gridy);
                 size = enemyships.size();
-                if (size && map[cellx][celly] != THUAI7::PlaceType::Shadow)  // 或者underattack，在想判定
+                enemyflag = false;
+                for (int i = 0; i < size; i++)
+                    if (enemyships[i] != nullptr)
+                    {
+                        enemyflag = true;
+                        break;
+                    }
+                if (enemyflag && map[cellx][celly] != THUAI7::PlaceType::Shadow)  // 或者underattack，在想判定
                     return hide(api);
                 else
                     return;
             }
         }
     }
-    if(size)
+    if(enemyflag)//目前只是远离了第一个敌人，不然要SVM了，会比较抽象
     {
-        auto Enemy1x = enemyships[0]->x;
-        auto Enemy1y = enemyships[0]->y;
+        auto Enemy1x = enemyships[first_en]->x;
+        auto Enemy1y = enemyships[first_en]->y;
         int dis1x = Enemy1x - gridx;
         int dis1y = Enemy1y - gridy;
         double angle1 = atan(dis1y / dis1x);
-        double distance1 = dis1x * dis1x + dis1y * dis1y;
+        double distance1 = sqrt(dis1x * dis1x + dis1y * dis1y);
         GoPlace(api,cellx+(int)((8-distance1) * cos(angle1+pi)), celly+(int)((8-distance1) * sin(angle1+pi)));
     }
         // 以下是告知base要装装备，要定义全局变量传递信息，base内的函数可以再进行判断和决策，信息传递要加逻辑和判断
