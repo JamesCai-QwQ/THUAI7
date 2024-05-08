@@ -259,6 +259,8 @@ public:
     }
 };
 ```
+
+
 ## 4.Get_Map函数升级
 现在Get_Map函数具有许多的新特性/功能
 
@@ -308,3 +310,35 @@ void GoPlace_Loop(IShipAPI& api,int des_x,int des_y);
 ## 4.my_closet_2_home
 my_Construction类，用于存放距离Base最近的construction类型，并且距离在8以内，以用于建造Fort
 
+# 5/7 Update
+
+## 1.得到GetResourceState是否与视野有关
+有关，若在视野外，则为0
+
+## 2.Build功能实现
+
+## 3.Get-Resource Optimize
+
+## 4.SLEEP_FOR 450ms
+
+# 5/8 Update
+
+## 1.修改了 Build_Specific
+使得其能够正常退出
+## 2.修改了 Construction 类
+加入了 bool Build 表示是否建造过这个建筑  
+目的是避免Build_ALL反复建造
+
+## 3.删去了不必要的Print
+增加运行效率
+
+## 4.Debug 关于 ITEAM API 
+`Base_Operate`  
+`Build_Ship`
+`Produce_Module`
+`Construct_Module`
+分别更新，使得不再出现Vector越界的问题
+
+## 5.新增Greedy_Resource
+使得能够在最近的位置进行采集  
+进行了更新，避免这个函数一直执行
