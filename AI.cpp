@@ -172,6 +172,7 @@ bool Path_Release(std::vector<Point> Path, IShipAPI& api,int count); //实现路
 
 // 暴力遍历所有己方资源
 void Get_Resource(IShipAPI& api);
+void Greedy_Resource(IShipAPI& api);
 
 // 在选定的位置建设选定的建筑物
 void Build_Specific(IShipAPI& api, THUAI7::ConstructionType type, my_Construction construction);
@@ -994,6 +995,75 @@ void Get_Resource(IShipAPI& api)
         }
     }
 }
+
+void Greedy_Resource(IShipAPI& api)
+{
+    auto selfinfo = api.GetSelfInfo();
+    int gridx = selfinfo->x;
+    int gridy = selfinfo->y;
+    int cellx = api.GridToCell(gridx);
+    int celly = api.GridToCell(gridy);
+
+    int size = resource_vec.size();
+    if (size == 0)
+    {
+        api.Print("Please Get Resource ! ");
+        return;
+    }
+    // minimum表示路径最小值
+    int minimum=1000;
+    // order表示最小对应的编号
+    int order=-1;
+    int x;
+    int y;
+    for (int i = 0; i < size; i++)
+    {
+        x = resource_vec[i].x;
+        y = resource_vec[i].y;
+
+        // Greedy算法找到离自己最近的资源
+        if ((cellx <= 25 && x <= 25) || (cellx >= 27 && x >= 27) && resource_vec[i].produce == false)
+        {
+            auto path = findShortestPath(Map_grid, {cellx, celly}, {resource_vec[i].x_4p, resource_vec[i].y_4p}, api);
+            int size = path.size();
+            if (size<minimum && size>0)
+            {
+                minimum = size;
+                order = i;
+            }
+        }
+    }
+    if (order == -1)
+    {
+        // order==-1表示未发现符合要求的
+        api.Print("Finished!");
+        return;
+    }
+
+    // 前往开采
+    x = resource_vec[order].x;
+    y = resource_vec[order].y;
+    GoPlace_Loop(api, resource_vec[order].x_4p, resource_vec[order].y_4p);
+    int state = api.GetResourceState(x, y);
+    api.Print(std::to_string(state));
+
+    int count = 0;
+    while (state > 0 && attack(api))
+    {  // 只要还有剩余资源就开采
+        api.Produce();
+        count++;
+        if (count % 10 == 0)
+        {
+            // 每十次进行一次判断与返回
+            api.Wait();
+            state = api.GetResourceState(x, y);
+            resource_vec[order].HP = state;
+            count = 0;
+        }
+    }
+    Greedy_Resource(api);
+}
+
 
 void Build_ALL(IShipAPI& api, THUAI7::ConstructionType type)
 {
