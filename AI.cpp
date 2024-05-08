@@ -106,6 +106,9 @@ public:
     // 0为无 1为己方 2为敌方
     int group=0;
 
+    // 新建bool参数：是否被建造
+    bool build = false;
+
     my_Construction(int i, int j,int i_4c,int j_4c)
     {
         x = i;
@@ -186,6 +189,98 @@ void Build_Specific(IShipAPI& api, THUAI7::ConstructionType type, my_Constructio
 // 在所有位置建设选定的建筑物
 void Build_ALL(IShipAPI& api, THUAI7::ConstructionType type);
 
+void Greedy_Build(IShipAPI& api, THUAI7::ConstructionType type)
+{
+    // 贪心算法按照路径进行建造
+    auto selfinfo = api.GetSelfInfo();
+    int gridx = selfinfo->x;
+    int gridy = selfinfo->y;
+    int cellx = api.GridToCell(gridx);
+    int celly = api.GridToCell(gridy);
+
+    int IntendedHp = 6000;
+    if (type == THUAI7::ConstructionType::Factory)
+    {
+        IntendedHp = 8000;
+    }
+    else if (type == THUAI7::ConstructionType::Fort)
+    {
+        IntendedHp = 12000;
+    }
+    else if (type == THUAI7::ConstructionType::Community)
+    {
+        IntendedHp = 6000;
+    }
+
+
+    int size = construction_vec.size();
+    if (size == 0)
+    {
+        api.Print("Please Get Construction ! ");
+        return;
+    }
+    // minimum表示路径最小值
+    int minimum = 1000;
+    // order表示最小对应的编号
+    int order = -1;
+    int x;
+    int y;
+    for (int i = 0; i < size; i++)
+    {
+        x = construction_vec[i].x;
+        y = construction_vec[i].y;
+
+        // Greedy算法找到离自己最近的资源
+        if ((cellx <= 25 && x <= 25) || (cellx >= 27 && x >= 27) && construction_vec[i].build == false)
+        {
+            auto path = findShortestPath(Map_grid, {cellx, celly}, {construction_vec[i].x_4c, construction_vec[i].y_4c}, api);
+            int size = path.size();
+            if (size < minimum && size > 0)
+            {
+                minimum = size;
+                order = i;
+            }
+        }
+    }
+    if (order == -1)
+    {
+        // order==-1表示未发现符合要求的
+        api.Print("Finished!");
+        return;
+    }
+
+    // 前往建造
+    x = construction_vec[order].x;
+    y = construction_vec[order].y;
+    GoPlace_Loop(api, construction_vec[order].x_4c, construction_vec[order].y_4c);
+    int hp = api.GetConstructionHp(x,y);
+
+    int count = 0;
+    while (hp < IntendedHp && attack(api))
+    {  // 没达到预期Hp 就继续建造
+        api.Construct(type);
+        count++;
+        if (count % 10 == 0)
+        {
+            // 每十次进行一次判断与返回
+            api.Wait();
+            hp = api.GetConstructionHp(x, y);
+            construction_vec[order].HP = hp;
+            count = 0;
+        }
+    }
+    if (hp > IntendedHp / 2)
+    { // 如果达到了预期建筑物血量的一半，就标记为已经建造好了
+        construction_vec[order].build= true;
+        Greedy_Build(api, type);
+    }
+    else
+    {
+        api.Print("Abrupted!");
+        return;
+    }
+}
+
 // 以下是大本营管理相关函数
 
 // 安装开采模组
@@ -246,7 +341,7 @@ void AI::play(IShipAPI& api)
     else if (this->playerID == 3)
     {
         // 3号军船 ？？？
-        //attack(api);
+        attack(api);
         api.PrintSelfInfo();
     }
     else if (this->playerID == 4)
@@ -275,7 +370,6 @@ void AI::play(ITeamAPI& api)  // 默认team playerID 为0
     Build_Ship(api, 2, 0);
     Build_Ship(api, 3, 0);
     Build_Ship(api, 4, 0);
-
 }
 
 
@@ -634,7 +728,6 @@ std::vector<std::vector<int>> Get_Map(IShipAPI& api)
                     continue;
                 }
                 auto hp = api.GetWormholeHp(i, j);
-                api.Print(std::to_string(hp));
                 if (j == 24 || j == 25)
                 {
                     if (hp == -1)
@@ -1054,7 +1147,6 @@ void Greedy_Resource(IShipAPI& api)
     y = resource_vec[order].y;
     GoPlace_Loop(api, resource_vec[order].x_4p, resource_vec[order].y_4p);
     int state = api.GetResourceState(x, y);
-    api.Print(std::to_string(state));
 
     int count = 0;
     while (state > 0 && attack(api))
@@ -1070,16 +1162,17 @@ void Greedy_Resource(IShipAPI& api)
             count = 0;
         }
     }
+
     if (state == 0)
     {
         resource_vec[order].produce = true;
+        Greedy_Resource(api);
     }
     else
     {
         api.Print("Abrupted!");
         return;
     }
-    Greedy_Resource(api);
 }
 
 
@@ -1135,6 +1228,10 @@ void Build_ALL(IShipAPI& api, THUAI7::ConstructionType type)
                             construction_vec[i].HP = Hp;
                         }
                     }
+                }
+                if (Hp >= IntendedHp / 2)
+                {
+                    construction_vec[i].build = true;
                 }
             }
         }
@@ -1263,11 +1360,37 @@ void Build_Ship(ITeamAPI& api, int shipno, int birthdes)
 }
 void Build_Specific(IShipAPI& api, THUAI7::ConstructionType type, my_Construction construction)
 {
+    // 如果这个建筑物已经建成
+    int hp = construction.HP;
+    if (construction.type == THUAI7::ConstructionType::Community)
+    {
+        if (hp >= 4000)
+        {
+            return;
+        }
+    }
+    else if (construction.type == THUAI7::ConstructionType::Factory)
+    {
+        if (hp >= 4000)
+        {
+            return;
+        }
+    }
+    else if (construction.type == THUAI7::ConstructionType::Fort)
+    {
+        if (hp >= 6000)
+        {
+            return;
+        }
+    }
+
+
+    // 否则运行到此处
     GoPlace_Loop(api, construction.x_4c, construction.y_4c);
     bool temp;
     int count = 0;
     int IntendedHp = 6000;
-    int hp = api.GetConstructionHp(construction.x, construction.y);
+    hp = api.GetConstructionHp(construction.x, construction.y);
     if (type == THUAI7::ConstructionType::Factory)
     {
         IntendedHp = 8000;
@@ -1291,6 +1414,7 @@ void Build_Specific(IShipAPI& api, THUAI7::ConstructionType type, my_Constructio
             count = 0;
         }
     }
+    construction.type = type;
     if (hp == IntendedHp)
     {
         api.Print("Construct Successfully Finished !");
