@@ -115,7 +115,7 @@ const double SPEED_FLAG_MS = 2.7;
 那就是`1000/3`这个玩意是有误差的，并且会不断累积，所以我们需要进行  
 `GoCell(api)`
 操作，这也就是说，我们需要在适当的时候使得这个误差足够小  
-(虽然`500/3`还是有误差，开发组真的逆天，就他妈不能速度设成4吗？？？？？？)
+(虽然`500/3`还是有误差，开发组真的，就不能速度设成4吗？？？？？？)
 
 
 >! ~~我是菜鸡qwq
@@ -173,14 +173,13 @@ const double SPEED_FLAG_MS = 2.7;
 
 ## 2.新增Base管理函数
 ```
-void Produce_Module(ITeamAPI& api, int shipno, int limit,int type=3);
-void Construct_Module(ITeamAPI& api, int shipno, int limit, int type = 3);
+void Produce_Module(ITeamAPI& api, int shipno,int type=3);
+void Construct_Module(ITeamAPI& api, int shipno, int type = 3);
 ```
 
 Argument Explaination
 
 - shipno:所操作的船只编号  
-- limit:设定经济限制(经济高于这个值才可以安装)
 - type:安装模组的种类(2/3)
 
 ## 3.my_Home my_Construction my_Resource my_Wormhole 自定义类
