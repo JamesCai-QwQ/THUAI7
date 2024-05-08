@@ -261,7 +261,7 @@ void AI::play(IShipAPI& api)
 
 void AI::play(ITeamAPI& api)  // 默认team playerID 为0
 {
-   // Base_Operate(api);
+    Base_Operate(api);
     api.PrintSelfInfo();
     api.PrintTeam();
 
