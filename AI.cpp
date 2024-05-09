@@ -576,13 +576,13 @@ void hide(IShipAPI& api)
     int celly = api.GridToCell(gridy);
     auto map = api.GetFullMap();
     int HP = api.GetSelfInfo()->hp;
-
+    
     auto enemyships = api.GetEnemyShips();
     int size = enemyships.size();
     bool enemyflag = false;
     int first_en=-1;
     for (int i = 0; i < size; i++)
-        if (enemyships[i] != nullptr)
+        if (enemyships[i]->hp>0)
         {
             enemyflag = true;
             first_en = i;
@@ -605,7 +605,7 @@ void hide(IShipAPI& api)
                 size = enemyships.size();
                 enemyflag = false;
                 for (int i = 0; i < size; i++)
-                    if (enemyships[i] != nullptr)
+                    if (enemyships[i]->hp > 0)
                     {
                         enemyflag = true;
                         break;
@@ -625,7 +625,7 @@ void hide(IShipAPI& api)
         int dis1y = Enemy1y - gridy;
         double angle1 = atan(dis1y / dis1x);
         double distance1 = sqrt(dis1x * dis1x + dis1y * dis1y);
-        GoPlace(api,cellx+(int)((8-distance1) * cos(angle1+pi)), celly+(int)((8-distance1) * sin(angle1+pi)));
+        GoPlace_Loop(api,cellx+(int)((8-distance1) * cos(angle1+pi)), celly+(int)((8-distance1) * sin(angle1+pi)));
     }
         // 以下是告知base要装装备，要定义全局变量传递信息，base内的函数可以再进行判断和决策，信息传递要加逻辑和判断
         /* modl1.number = api.GetSelfInfo()->playerID;
@@ -838,6 +838,19 @@ bool GoPlace(IShipAPI& api, int des_x, int des_y)
         return GoPlace(api, des_x, 0);
     if (des_y >= 50)
         return GoPlace(api, des_x, 49);
+    if (Map_grid[des_x][des_y] == 1)
+    {
+        if (Map_grid[des_x - 1][des_y] == 0)
+            return GoPlace(api, des_x - 1, des_y);
+        else if (Map_grid[des_x + 1][des_y] == 0)
+            return GoPlace(api, des_x + 1, des_y);
+        else if (Map_grid[des_x][des_y - 1] == 0)
+            return GoPlace(api, des_x, des_y - 1);
+        else if (Map_grid[des_x][des_y + 1] == 0)
+            return GoPlace(api, des_x, des_y + 1);
+        else
+            return false;
+    }
     api.Wait();
     auto selfinfo = api.GetSelfInfo();
     int cur_gridx = selfinfo->x;
@@ -882,7 +895,6 @@ bool GoPlace(IShipAPI& api, int des_x, int des_y)
     }
     // api.Print("Got the Direction of the PATH !");
     // api.Wait();
-    bool temp = false;
     for (int j = 0; j < path_size - 1; j++)
     {
         if (j % 6 == 0)
