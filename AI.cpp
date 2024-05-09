@@ -840,13 +840,13 @@ bool GoPlace(IShipAPI& api, int des_x, int des_y)
         return GoPlace(api, des_x, 49);
     if (Map_grid[des_x][des_y] == 1)
     {
-        if (Map_grid[des_x - 1][des_y] == 0)
+        if (des_x-1>=0&&Map_grid[des_x - 1][des_y] == 0)
             return GoPlace(api, des_x - 1, des_y);
-        else if (Map_grid[des_x + 1][des_y] == 0)
+        else if (des_x+1<50&&Map_grid[des_x + 1][des_y] == 0)
             return GoPlace(api, des_x + 1, des_y);
-        else if (Map_grid[des_x][des_y - 1] == 0)
+        else if (des_y-1>=0&&Map_grid[des_x][des_y - 1] == 0)
             return GoPlace(api, des_x, des_y - 1);
-        else if (Map_grid[des_x][des_y + 1] == 0)
+        else if (des_y+1<50&&Map_grid[des_x][des_y + 1] == 0)
             return GoPlace(api, des_x, des_y + 1);
         else
             return false;
