@@ -341,3 +341,14 @@ my_Construction类，用于存放距离Base最近的construction类型，并且�
 ## 5.新增Greedy_Resource
 使得能够在最近的位置进行采集  
 进行了更新，避免这个函数一直执行
+
+# 5/9 Update
+## 1.修复了已知的bugs
+* 调整了Build_Specific的参数(index),保证统一性，避免重复建造
+* 对于Build类的总体函数都加入了建造轮数round进行控制(开发组bug)
+
+## 2.更新了Greedy_Build & Greedy_Resource
+
+## 3.可能的：
+1.军船策略  
+2.避免采集资源时两个船在一块挤
