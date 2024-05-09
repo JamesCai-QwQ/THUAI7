@@ -29,10 +29,12 @@ int dx[] = {-1, 0, 1, 0};
 int dy[] = {0, -1, 0, 1};
 int count1 = 0;
 int count2 = 0;
+int index_close = -1;
 bool temp1 = false;
 const double SPEED_CIVIL_MS = 3.00;
 const double SPEED_MILIT_MS = 2.80;
 const double SPEED_FLAG_MS = 2.70;
+
 
 struct Point
 {
@@ -51,6 +53,8 @@ public:
     // 开采点位
     int x_4p;
     int y_4p;
+    int x_4p2;
+    int y_4p2;
 
     // 是否已经开采过了
     bool produce;
@@ -184,102 +188,12 @@ void Get_Resource(IShipAPI& api);
 void Greedy_Resource(IShipAPI& api);
 
 // 在选定的位置建设选定的建筑物
-void Build_Specific(IShipAPI& api, THUAI7::ConstructionType type, my_Construction construction);
+void Build_Specific(IShipAPI& api, THUAI7::ConstructionType type, int index);
 
 // 在所有位置建设选定的建筑物
 void Build_ALL(IShipAPI& api, THUAI7::ConstructionType type);
 
-void Greedy_Build(IShipAPI& api, THUAI7::ConstructionType type)
-{
-    // 贪心算法按照路径进行建造
-    auto selfinfo = api.GetSelfInfo();
-    int gridx = selfinfo->x;
-    int gridy = selfinfo->y;
-    int cellx = api.GridToCell(gridx);
-    int celly = api.GridToCell(gridy);
-
-    int IntendedHp = 6000;
-    if (type == THUAI7::ConstructionType::Factory)
-    {
-        IntendedHp = 8000;
-    }
-    else if (type == THUAI7::ConstructionType::Fort)
-    {
-        IntendedHp = 12000;
-    }
-    else if (type == THUAI7::ConstructionType::Community)
-    {
-        IntendedHp = 6000;
-    }
-
-
-    int size = construction_vec.size();
-    if (size == 0)
-    {
-        api.Print("Please Get Construction ! ");
-        return;
-    }
-    // minimum表示路径最小值
-    int minimum = 1000;
-    // order表示最小对应的编号
-    int order = -1;
-    int x;
-    int y;
-    for (int i = 0; i < size; i++)
-    {
-        x = construction_vec[i].x;
-        y = construction_vec[i].y;
-
-        // Greedy算法找到离自己最近的资源
-        if ((cellx <= 25 && x <= 25) || (cellx >= 27 && x >= 27) && construction_vec[i].build == false)
-        {
-            auto path = findShortestPath(Map_grid, {cellx, celly}, {construction_vec[i].x_4c, construction_vec[i].y_4c}, api);
-            int size = path.size();
-            if (size < minimum && size > 0)
-            {
-                minimum = size;
-                order = i;
-            }
-        }
-    }
-    if (order == -1)
-    {
-        // order==-1表示未发现符合要求的
-        api.Print("Finished!");
-        return;
-    }
-
-    // 前往建造
-    x = construction_vec[order].x;
-    y = construction_vec[order].y;
-    GoPlace_Loop(api, construction_vec[order].x_4c, construction_vec[order].y_4c);
-    int hp = api.GetConstructionHp(x,y);
-
-    int count = 0;
-    while (hp < IntendedHp && attack(api))
-    {  // 没达到预期Hp 就继续建造
-        api.Construct(type);
-        count++;
-        if (count % 10 == 0)
-        {
-            // 每十次进行一次判断与返回
-            api.Wait();
-            hp = api.GetConstructionHp(x, y);
-            construction_vec[order].HP = hp;
-            count = 0;
-        }
-    }
-    if (hp > IntendedHp / 2)
-    { // 如果达到了预期建筑物血量的一半，就标记为已经建造好了
-        construction_vec[order].build= true;
-        Greedy_Build(api, type);
-    }
-    else
-    {
-        api.Print("Abrupted!");
-        return;
-    }
-}
+void Greedy_Build(IShipAPI& api, THUAI7::ConstructionType type);
 
 // 以下是大本营管理相关函数
 
@@ -334,8 +248,9 @@ void AI::play(IShipAPI& api)
     else if (this->playerID == 2)
     {
         // 2号民船定位 建工厂
-        Build_Specific(api, THUAI7::ConstructionType::Fort, closest_2_home);
-        Build_ALL(api, THUAI7::ConstructionType::Factory);
+        Build_Specific(api, THUAI7::ConstructionType::Fort, index_close);
+        Greedy_Build(api, THUAI7::ConstructionType::Factory);
+        Greedy_Resource(api);
         api.PrintSelfInfo();
     }
     else if (this->playerID == 3)
@@ -348,15 +263,13 @@ void AI::play(IShipAPI& api)
     {
         // 4号旗舰 偷家(不是)
         api.PrintSelfInfo();
-        GoPlace_Loop(api, home_vec[1].x + 1, home_vec[1].y);
-
+        GoPlace_Loop(api, home_vec[1].x + 2, home_vec[1].y);
         api.Attack(pi);
     }
 }
 
 void AI::play(ITeamAPI& api)  // 默认team playerID 为0
 {
-    Base_Operate(api);
     api.PrintSelfInfo();
     api.PrintTeam();
 
@@ -576,20 +489,20 @@ void hide(IShipAPI& api)
     int celly = api.GridToCell(gridy);
     auto map = api.GetFullMap();
     int HP = api.GetSelfInfo()->hp;
-    
+
     auto enemyships = api.GetEnemyShips();
     int size = enemyships.size();
     bool enemyflag = false;
-    int first_en=-1;
+    int first_en = -1;
     for (int i = 0; i < size; i++)
-        if (enemyships[i]->hp>0)
+        if (enemyships[i]->hp > 0)
         {
             enemyflag = true;
             first_en = i;
             break;
         }
     // 下面是丝血隐蔽（进shadow）
-    for (int i = cellx - 10 < 0 ? 0 : cellx - 10; i < (cellx + 11 > 50 ? 50 : cellx + 11)&& map[cellx][celly]!=THUAI7::PlaceType::Shadow ; i++)  // 需要加逃离敌人+到视野外判断
+    for (int i = cellx - 10 < 0 ? 0 : cellx - 10; i < (cellx + 11 > 50 ? 50 : cellx + 11) && map[cellx][celly] != THUAI7::PlaceType::Shadow; i++)  // 需要加逃离敌人+到视野外判断
     {
         for (int j = celly - sqrt(10 * 10 - (i - cellx) * (i - cellx)) < 0 ? 0 : celly - sqrt(10 * 10 - (i - cellx) * (i - cellx)); j < (celly + sqrt(10 * 10 - (i - cellx) * (i - cellx)) + 1 > 50 ? 50 : celly + sqrt(10 * 10 - (i - cellx) * (i - cellx)) + 1); j++)
         {
@@ -617,7 +530,7 @@ void hide(IShipAPI& api)
             }
         }
     }
-    if(enemyflag)//目前只是远离了第一个敌人，不然要SVM了，会比较抽象
+    if (enemyflag)  // 目前只是远离了第一个敌人，不然要SVM了，会比较抽象
     {
         auto Enemy1x = enemyships[first_en]->x;
         auto Enemy1y = enemyships[first_en]->y;
@@ -625,11 +538,11 @@ void hide(IShipAPI& api)
         int dis1y = Enemy1y - gridy;
         double angle1 = atan(dis1y / dis1x);
         double distance1 = sqrt(dis1x * dis1x + dis1y * dis1y);
-        GoPlace_Loop(api,cellx+(int)((8-distance1) * cos(angle1+pi)), celly+(int)((8-distance1) * sin(angle1+pi)));
+        GoPlace_Loop(api, cellx + (int)((8 - distance1) * cos(angle1 + pi)), celly + (int)((8 - distance1) * sin(angle1 + pi)));
     }
-        // 以下是告知base要装装备，要定义全局变量传递信息，base内的函数可以再进行判断和决策，信息传递要加逻辑和判断
-        /* modl1.number = api.GetSelfInfo()->playerID;
-        modl1.moduletype = THUAI7::ModuleType::ModuleShield3;*/
+    // 以下是告知base要装装备，要定义全局变量传递信息，base内的函数可以再进行判断和决策，信息传递要加逻辑和判断
+    /* modl1.number = api.GetSelfInfo()->playerID;
+    modl1.moduletype = THUAI7::ModuleType::ModuleShield3;*/
 }
 
 bool attack(IShipAPI& api)  // 正在改，缺陷还很多
@@ -645,12 +558,12 @@ bool attack(IShipAPI& api)  // 正在改，缺陷还很多
     int totalenenmyhp = 0;
     int size = enemyships.size();
 
-    for (int i = 0; i<size; i++)
+    for (int i = 0; i < size; i++)
         totalenenmyhp += enemyships[i]->hp;
 
-    if (size)       //要增加shadow中受攻击的条件
+    if (size)  // 要增加shadow中受攻击的条件
     {
-        if (HP < 2000 && totalenenmyhp > HP && map[cellx][celly]!=THUAI7::PlaceType::Shadow)  // 条件可能还要改，丝血隐蔽
+        if (HP < 2000 && totalenenmyhp > HP && map[cellx][celly] != THUAI7::PlaceType::Shadow)  // 条件可能还要改，丝血隐蔽
         {
             hide(api);
             api.Wait();
@@ -669,6 +582,7 @@ bool attack(IShipAPI& api)  // 正在改，缺陷还很多
     else
         return true;
 }
+
 
 void Judge(IShipAPI& api)  // 攻击判断不写在judge里，改为在采集/建造函数内部判断，但移动过程怎么办，写移动里面可能会死循环
 {
@@ -822,6 +736,7 @@ std::vector<std::vector<int>> Get_Map(IShipAPI& api)
     if (construction_vec[number].home_dist < 64)
     {
         closest_2_home = construction_vec[number];
+        index_close = number;
         api.Print("Get Consturction Point Closest to Home !\n Can Build Fort In This Place");
     }
     api.Print("The Map Has Already Got !");
@@ -840,13 +755,13 @@ bool GoPlace(IShipAPI& api, int des_x, int des_y)
         return GoPlace(api, des_x, 49);
     if (Map_grid[des_x][des_y] == 1)
     {
-        if (des_x-1>=0&&Map_grid[des_x - 1][des_y] == 0)
+        if (des_x - 1 >= 0 && Map_grid[des_x - 1][des_y] == 0)
             return GoPlace(api, des_x - 1, des_y);
-        else if (des_x+1<50&&Map_grid[des_x + 1][des_y] == 0)
+        else if (des_x + 1 < 50 && Map_grid[des_x + 1][des_y] == 0)
             return GoPlace(api, des_x + 1, des_y);
-        else if (des_y-1>=0&&Map_grid[des_x][des_y - 1] == 0)
+        else if (des_y - 1 >= 0 && Map_grid[des_x][des_y - 1] == 0)
             return GoPlace(api, des_x, des_y - 1);
-        else if (des_y+1<50&&Map_grid[des_x][des_y + 1] == 0)
+        else if (des_y + 1 < 50 && Map_grid[des_x][des_y + 1] == 0)
             return GoPlace(api, des_x, des_y + 1);
         else
             return false;
@@ -890,8 +805,7 @@ bool GoPlace(IShipAPI& api, int des_x, int des_y)
     {
         direction[i] = Point{
             path[i + 1].x - path[i].x,
-            path[i + 1].y - path[i].y
-        };
+            path[i + 1].y - path[i].y};
     }
     // api.Print("Got the Direction of the PATH !");
     // api.Wait();
@@ -953,6 +867,7 @@ void GoPlace_Loop(IShipAPI& api, int des_x, int des_y)
         api.Print("Not Arrived Yet! Loop Terminated! ");
     }
 }
+
 
 bool isValid(IShipAPI& api, int x, int y)
 {
@@ -1093,7 +1008,7 @@ void Get_Resource(IShipAPI& api)
             int state = api.GetResourceState(x, y);
             api.Print(std::to_string(state));
             int count = 0;
-            while (state > 0 && attack(api))
+            while (state > 0)
             {  // 只要还有剩余资源就开采
                 api.Produce();
                 count++;
@@ -1136,7 +1051,7 @@ void Greedy_Resource(IShipAPI& api)
         y = resource_vec[i].y;
 
         // Greedy算法找到离自己最近的资源
-        if ((cellx <= 25 && x <= 25) || (cellx >= 27 && x >= 27) && resource_vec[i].produce == false)
+        if (((cellx <= 25 && x <= 25) || (cellx >= 27 && x >= 27)) && resource_vec[i].produce == false)
         {
             auto path = findShortestPath(Map_grid, {cellx, celly}, {resource_vec[i].x_4p, resource_vec[i].y_4p}, api);
             int size = path.size();
@@ -1161,9 +1076,10 @@ void Greedy_Resource(IShipAPI& api)
     int state = api.GetResourceState(x, y);
 
     int count = 0;
-    while (state > 0 && attack(api))
+    while (state > 0)
     {  // 只要还有剩余资源就开采
         api.Produce();
+        std::this_thread::sleep_for(std::chrono::milliseconds(50));
         count++;
         if (count % 10 == 0)
         {
@@ -1225,23 +1141,26 @@ void Build_ALL(IShipAPI& api, THUAI7::ConstructionType type)
             {
                 GoPlace_Loop(api, construction_vec[i].x_4c, construction_vec[i].y_4c);
                 int Hp = api.GetConstructionHp(construction_vec[i].x, construction_vec[i].y);
-                if (Hp < IntendedHp)
+                int round = 0;
+                if (Hp < IntendedHp && round < 85)
                 {
                     int count = 0;
-                    while (Hp < IntendedHp && attack(api))
+                    while (Hp < IntendedHp)
                     {
                         api.Construct(type);
+                        std::this_thread::sleep_for(std::chrono::milliseconds(50));
                         count++;
                         if (count % 10 == 0)
                         {
                             api.Wait();
                             Hp = api.GetConstructionHp(construction_vec[i].x, construction_vec[i].y);
                             count = 0;
+                            round++;
                             construction_vec[i].HP = Hp;
                         }
                     }
                 }
-                if (Hp >= IntendedHp / 2)
+                if (Hp >= IntendedHp / 2 || round > 80)
                 {
                     construction_vec[i].build = true;
                 }
@@ -1256,6 +1175,7 @@ void Construct_Module(ITeamAPI& api, int shipno, int type)
     int size = ships.size();
     if (shipno > size || size == 0)
     {
+        api.Print("No Correspond Ship!  \n");
         return;
     }
 
@@ -1323,10 +1243,6 @@ void Build_Ship(ITeamAPI& api, int shipno, int birthdes)
     int energy = selfinfo->energy;
     auto ships = api.GetShips();
     int size = ships.size();
-    if (shipno > size || size == 0)
-    {
-        return;
-    }
 
     if (shipno <= size && ships[shipno - 1]->hp > 0)
     {
@@ -1370,25 +1286,30 @@ void Build_Ship(ITeamAPI& api, int shipno, int birthdes)
     }
     return;
 }
-void Build_Specific(IShipAPI& api, THUAI7::ConstructionType type, my_Construction construction)
+void Build_Specific(IShipAPI& api, THUAI7::ConstructionType type, int index)
 {
     // 如果这个建筑物已经建成
+    if (index == -1)
+    {//没有符合要求的点
+        return;
+    }
+    my_Construction construction = construction_vec[index];
     int hp = construction.HP;
-    if (construction.type == THUAI7::ConstructionType::Community)
+    if (construction.type == THUAI7::ConstructionType::Community || construction.build == true)
     {
         if (hp >= 4000)
         {
             return;
         }
     }
-    else if (construction.type == THUAI7::ConstructionType::Factory)
+    else if (construction.type == THUAI7::ConstructionType::Factory || construction.build==true)
     {
         if (hp >= 4000)
         {
             return;
         }
     }
-    else if (construction.type == THUAI7::ConstructionType::Fort)
+    else if (construction.type == THUAI7::ConstructionType::Fort || construction.build == true)
     {
         if (hp >= 6000)
         {
@@ -1401,6 +1322,7 @@ void Build_Specific(IShipAPI& api, THUAI7::ConstructionType type, my_Constructio
     GoPlace_Loop(api, construction.x_4c, construction.y_4c);
     bool temp;
     int count = 0;
+    int round = 0;
     int IntendedHp = 6000;
     hp = api.GetConstructionHp(construction.x, construction.y);
     if (type == THUAI7::ConstructionType::Factory)
@@ -1415,20 +1337,29 @@ void Build_Specific(IShipAPI& api, THUAI7::ConstructionType type, my_Constructio
     {
         IntendedHp = 6000;
     }
-    while (hp < IntendedHp)
+    while (hp < IntendedHp && round < 85)
     {
         count++;
         api.Construct(type);
+        std::this_thread::sleep_for(std::chrono::milliseconds(50));
+
         if (count % 10 == 0)
         {
             api.Wait();
             hp = api.GetConstructionHp(construction.x, construction.y);
+            api.Print("HP is : " + std::to_string(hp) + "\n");
             count = 0;
+            round++;
+            api.Print(std::to_string(round));
         }
     }
-    construction.type = type;
-    if (hp == IntendedHp)
+   
+    if (hp == IntendedHp || round > 80)
     {
+        api.Print(std::to_string(round));
+        construction.HP = hp;
+        construction.build = true;
+        construction.type = type;
         api.Print("Construct Successfully Finished !");
     }
     return;
@@ -1550,5 +1481,101 @@ void Decode_Me(ITeamAPI& api)
                     break;
             }
         }
+    }
+}
+
+void Greedy_Build(IShipAPI& api, THUAI7::ConstructionType type)
+{
+    // 贪心算法按照路径进行建造
+    auto selfinfo = api.GetSelfInfo();
+    int gridx = selfinfo->x;
+    int gridy = selfinfo->y;
+    int cellx = api.GridToCell(gridx);
+    int celly = api.GridToCell(gridy);
+
+    int IntendedHp = 6000;
+    if (type == THUAI7::ConstructionType::Factory)
+    {
+        IntendedHp = 8000;
+    }
+    else if (type == THUAI7::ConstructionType::Fort)
+    {
+        IntendedHp = 12000;
+    }
+    else if (type == THUAI7::ConstructionType::Community)
+    {
+        IntendedHp = 6000;
+    }
+
+    int size = construction_vec.size();
+    if (size == 0)
+    {
+        api.Print("Please Get Construction ! ");
+        return;
+    }
+    // minimum表示路径最小值
+    int minimum = 1000;
+    // order表示最小对应的编号
+    int order = -1;
+    int x;
+    int y;
+    for (int i = 0; i < size; i++)
+    {
+        x = construction_vec[i].x;
+        y = construction_vec[i].y;
+
+        // Greedy算法找到离自己最近的资源
+        if (((cellx <= 25 && x <= 25) || (cellx >= 27 && x >= 27)) && construction_vec[i].build == false)
+        {
+            auto path = findShortestPath(Map_grid, {cellx, celly}, {construction_vec[i].x_4c, construction_vec[i].y_4c}, api);
+            int size = path.size();
+            if (size < minimum && size > 0)
+            {
+                minimum = size;
+                order = i;
+            }
+        }
+    }
+    if (order == -1)
+    {
+        // order==-1表示未发现符合要求的
+        api.Print("Finished!");
+        return;
+    }
+
+    // 前往建造
+    x = construction_vec[order].x;
+    y = construction_vec[order].y;
+    GoPlace_Loop(api, construction_vec[order].x_4c, construction_vec[order].y_4c);
+    int hp = api.GetConstructionHp(x, y);
+    int round = 0;
+    int count = 0;
+    while (hp < IntendedHp && round < 85)
+    {  // 没达到预期Hp 就继续建造
+        api.Construct(type);
+        std::this_thread::sleep_for(std::chrono::milliseconds(50));
+        count++;
+        if (count % 10 == 0)
+        {
+            // 每十次进行一次判断与返回
+            api.Wait();
+            hp = api.GetConstructionHp(x, y);
+            construction_vec[order].HP = hp;
+            count = 0;
+            round++;
+        }
+    }
+    if (hp > IntendedHp / 2 || round > 80)
+    {  // 如果达到了预期建筑物血量的一半，就标记为已经建造好了
+        // 测试建造的情况，（突然断开）
+        // 但是实际上get hp貌似有bug，所以我们加入建造轮数round作为判断标准
+        api.Print(std::to_string(round));
+        construction_vec[order].build = true;
+        Greedy_Build(api, type);
+    }
+    else
+    {
+        api.Print("Abrupted!");
+        return;
     }
 }
