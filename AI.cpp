@@ -168,8 +168,7 @@ void AttackShip(IShipAPI& api);                    // 攻击敌方船只
 void Install_Module(ITeamAPI& api, int number, int type);  // 为船只安装模块 1:Attack 2:Construct 3:Comprehensive
 bool GoCell(IShipAPI& api);                        // 移动到cell中心
 bool attack(IShipAPI& api);                                // 防守反击+判断敌人
-void hide(IShipAPI& api);                                  // 丝血隐蔽
-void AttackConstruction(IShipAPI& api,int index);                    // 攻击建筑物，含基地
+void hide(IShipAPI& api);                                  // 丝血隐蔽                  
 
 
 // 以下是寻路相关的函数
@@ -199,6 +198,138 @@ void Build_ALL(IShipAPI& api, THUAI7::ConstructionType type);
 void Greedy_Build(IShipAPI& api, THUAI7::ConstructionType type);
 
 
+void Go_Recover(IShipAPI& api)
+{
+    std::vector<my_Construction>& temp = construction_vec;
+    for (int i = 0; i < temp.size(); i++)
+    {
+        // 有community就去community回血
+        if (temp[i].type == THUAI7::ConstructionType::Community)
+        {
+            GoPlace_Loop(api, temp[i].x_4c, temp[i].y_4c);
+            api.Recover(100);
+        }
+    }
+
+    // 没有community就回家回血
+    if (api.GetHomeHp())
+    {
+        GoPlace_Loop(api, home_vec[0].x + 1, home_vec[0].y);
+        api.Recover(100);
+    }
+    return;
+}
+
+
+//  是否被攻击
+bool Under_Attack(IShipAPI& api)
+{
+    auto info0 = api.GetSelfInfo();
+    int hp0 = info0->hp;
+    std::this_thread::sleep_for(std::chrono::milliseconds(200));
+    auto info1 = api.GetSelfInfo();
+    int hp1 = info1->hp;
+    if (info1 < info0)
+    {
+        return true;
+    }
+    return false;
+}
+
+
+bool Attack_Loop_Cons(IShipAPI& api, double angle, my_Construction cons)
+{// 采用循环攻击方式 避免每攻击一次都要重新进函数，浪费了判断时间
+    
+    int count = 0;
+    int round = 0;
+    int hp = api.GetConstructionHp(cons.x, cons.y);
+    while (hp > 2000 && round < 50)
+    {
+        api.Attack(angle);
+        std::this_thread::sleep_for(std::chrono::milliseconds(50));
+        count++;
+        if (count % 10 == 0)
+        {
+            round++;
+            hp = api.GetConstructionHp(cons.x, cons.y);
+            cons.HP = hp;
+
+        }
+    }
+
+    api.Print("Attack Loop Terminated! (" + std::to_string(cons.x) + "," + std::to_string(cons.y) + ")\n");
+    if (hp == 0)
+    {
+        return true;
+    }
+
+    return false;
+}
+
+bool Attack_Cons(IShipAPI& api)
+{
+    auto selfinfo = api.GetSelfInfo();
+    int x = selfinfo->x;
+    int y = selfinfo->y;
+
+    std::vector<my_Construction>& temp = construction_vec;
+    int size = temp.size();
+    bool judge = false;
+
+    for (int i = 0; i < size; i++)
+    {
+        if (api.HaveView(temp[i].x, temp[i].y))
+        {
+            if (temp[i].group != 1 && api.GetConstructionHp(temp[i].x, temp[i].y) != 0)
+            {
+                // 判定为敌方 并进行攻击
+                temp[i].group = 2;
+                int gridx = api.CellToGrid(temp[i].x);
+                int gridy = api.CellToGrid(temp[i].y);
+
+                if (gridx == x)
+                {
+                    if (gridy > y)
+                    {
+                        judge =Attack_Loop_Cons(api, pi / 2, temp[i]);
+                    }
+                    else
+                    {
+                        judge =Attack_Loop_Cons(api, 3 * pi / 2, temp[i]);
+                    }
+                }
+                else if (gridy == y)
+                {
+                    if (gridx > x)
+                    {
+                        judge=Attack_Loop_Cons(api, 0, temp[i]);
+                    }
+                    else
+                    {
+                        judge=Attack_Loop_Cons(api, pi, temp[i]);
+                    }
+                }
+                else if (gridx - x > 0 && gridy - y > 0)
+                {
+                    double angle = atan((gridy-y) / (gridx-x));
+                    judge=Attack_Loop_Cons(api, angle, temp[i]);
+                }
+                else if (gridx - x > 0 && gridy - y < 0)
+                {
+                    double angle = atan((gridy - y) / (gridx-x)) + 2 * pi;
+                    judge=Attack_Loop_Cons(api, angle, temp[i]);
+                }
+                else
+                {
+                    double angle = atan((gridy -y) / (gridx-x) )+ pi;
+                    judge=Attack_Loop_Cons(api, angle, temp[i]);
+                }
+                
+            }
+        }
+    }
+    return judge;
+}
 
 // 以下是大本营管理相关函数
 
@@ -258,6 +389,7 @@ void AI::play(IShipAPI& api)
     else if (this->playerID == 2)
     {
         // 2号民船定位 建工厂
+        Greedy_Resource(api);
         Build_Specific(api, THUAI7::ConstructionType::Fort, index_close);
         Greedy_Build(api, THUAI7::ConstructionType::Factory);
         Greedy_Resource(api);
@@ -268,6 +400,7 @@ void AI::play(IShipAPI& api)
     {
         // 3号军船 ？？？
         attack(api);
+        Go_Recover(api);
         api.PrintSelfInfo();
     }
     else if (this->playerID == 4)
@@ -499,8 +632,25 @@ void AttackShip(IShipAPI& api)
         else if (distance[i] < distance[flag])
             flag = i;
     }
+
+    int enemyhp = Enemys[flag]->hp;
+    int count=0;
+    int round = 0;
     if (flag != -1)
-        api.Attack(angle[flag]);
+    {
+        while (round < 20 || enemyhp != 0)
+        {
+            api.Attack(angle[flag]);
+            count++;
+            if (count % 10 == 0)
+            {
+                count = 0;
+                round++;
+            }
+            api.Print("Attacking now!");
+            
+        }
+    }
     delete[] distance;
     delete[] angle;
     delete[] disy;
@@ -1603,6 +1753,7 @@ void Greedy_Build(IShipAPI& api, THUAI7::ConstructionType type)
         // 但是实际上get hp貌似有bug，所以我们加入建造轮数round作为判断标准
         api.Print(std::to_string(round));
         construction_vec[order].build = true;
+        construction_vec[order].group = 1;
         Greedy_Build(api, type);
     }
     else
