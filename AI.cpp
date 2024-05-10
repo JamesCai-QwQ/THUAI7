@@ -57,7 +57,7 @@ public:
     int y_4p2;
 
     // 是否已经开采过了
-    bool produce;
+    bool produce = false;
     my_Resource(int x_, int y_,int x4,int y4)
     {
         x = x_;
@@ -161,7 +161,7 @@ NeedModule modl1;
 
 
 
-// 以下是调用的函数列表
+// 以下是调用的函数列表(Basic)
 void Judge(IShipAPI& api);                         // 判断应当进行哪个操作(攻击/获取资源等)
 void Base_Operate(ITeamAPI& api);                  // 基地的操作
 void AttackShip(IShipAPI& api);                    // 攻击敌方船只
@@ -169,11 +169,13 @@ void Install_Module(ITeamAPI& api, int number, int type);  // 为船只安装模
 bool GoCell(IShipAPI& api);                        // 移动到cell中心
 bool attack(IShipAPI& api);                                // 防守反击+判断敌人
 void hide(IShipAPI& api);                                  // 丝血隐蔽
+void AttackConstruction(IShipAPI& api,int index);                    // 攻击建筑物，含基地
 
 
 // 以下是寻路相关的函数
 bool isValid(IShipAPI& api, int x, int y);
 std::vector<std::vector<int>> Get_Map(IShipAPI& api);                            // 得到一个二维vector，包含地图上可走/不可走信息
+void Update_Map(IShipAPI& api);                     // 更新MAP,增加友军判断
 const std::vector<Point> findShortestPath(const std::vector<std::vector<int>>& grid, Point start, Point end, IShipAPI& api);  // 广度优先搜索寻路
 bool GoPlace(IShipAPI& api, int des_x, int des_y);
 void GoPlace_Loop(IShipAPI& api,int des_x,int des_y);
@@ -193,7 +195,10 @@ void Build_Specific(IShipAPI& api, THUAI7::ConstructionType type, int index);
 // 在所有位置建设选定的建筑物
 void Build_ALL(IShipAPI& api, THUAI7::ConstructionType type);
 
+// 贪心算法建造建筑物
 void Greedy_Build(IShipAPI& api, THUAI7::ConstructionType type);
+
+
 
 // 以下是大本营管理相关函数
 
@@ -206,12 +211,11 @@ void Construct_Module(ITeamAPI& api, int shipno,int type = 3);
 // 建船函数
 void Build_Ship(ITeamAPI& api, int shipno, int birthdes);
 
-//安装军事模组
+// 安装军事模组
 void Military_Module(ITeamAPI& api, int shipno, int type = 0);
 void Military_Module_weapon(ITeamAPI& api, int shipno, int type = 3);
 void Military_Module_armour(ITeamAPI& api, int shipno, int type = 3);
 void Military_Module_shield(ITeamAPI& api, int shipno, int type = 3);
-
 
 /*
 以下是通信接口的定义： 
@@ -258,6 +262,7 @@ void AI::play(IShipAPI& api)
         Greedy_Build(api, THUAI7::ConstructionType::Factory);
         Greedy_Resource(api);
         api.PrintSelfInfo();
+        api.GetEnemyShips();
     }
     else if (this->playerID == 3)
     {
@@ -270,7 +275,7 @@ void AI::play(IShipAPI& api)
         // 4号旗舰 偷家(不是)
         api.PrintSelfInfo();
         GoPlace_Loop(api, home_vec[1].x + 2, home_vec[1].y);
-        api.Attack(pi);
+        attack(api);
     }
 }
 
@@ -279,16 +284,28 @@ void AI::play(ITeamAPI& api)  // 默认team playerID 为0
     api.PrintSelfInfo();
     api.PrintTeam();
 
-    // 二号船装采集模块
-    // 三号船装建造模块
+    // 一号船装采集模块
+    // 二号船装建造模块
     Produce_Module(api, 1, 3);
     Construct_Module(api, 2, 3);
 
+    // 三号船装 Armor / Sheild 
+    api.InstallModule(3, THUAI7::ModuleType::ModuleArmor3);
+    api.InstallModule(3, THUAI7::ModuleType::ModuleMissileGun);
+    api.InstallModule(3, THUAI7::ModuleType::ModuleShield3);
+
+
+    api.InstallModule(4, THUAI7::ModuleType::ModuleArmor3);
+    api.InstallModule(4, THUAI7::ModuleType::ModuleMissileGun);
+    api.InstallModule(4, THUAI7::ModuleType::ModuleShield3);
     // 按照ShipTypeDict定义的船型
     // 在出生点位0(默认)进行建造
     Build_Ship(api, 2, 0);
     Build_Ship(api, 3, 0);
     Build_Ship(api, 4, 0);
+
+
+
 }
 
 
@@ -441,6 +458,7 @@ void AttackShip(IShipAPI& api)
     auto Enemys = api.GetEnemyShips();
     int size = Enemys.size();
     // atan是math.h里面的函数(反三角正切)
+    // PS:atan得到的是在 -pi/2 pi/2 之间的
     // 用于得到敌方船只的方位
     int* Enemyx = new int[size];
     int* Enemyy = new int[size];
@@ -459,8 +477,15 @@ void AttackShip(IShipAPI& api)
                 angle[i] = pi / 2;
             else
                 angle[i] = -pi / 2;
-        else if (disx[i] > 0)
+        else if (disy[i] == 0)
+            if (disx[i] > 0)
+                angle[i] = 0;
+            else
+                angle[i] = pi;
+        else if (disx[i] > 0 && disy[i] > 0)
             angle[i] = atan(disy[i] / disx[i]);
+        else if (disx[i] > 0 && disy[i] < 0)
+            angle[i] = atan(disy[i] / disx[i]) + 2 * pi;
         else
             angle[i] = atan(disy[i] / disx[i]) + pi;
         distance[i] = disy[i] * disy[i] + disx[i] * disx[i];
@@ -641,7 +666,7 @@ std::vector<std::vector<int>> Get_Map(IShipAPI& api)
         for (int j = 0; j < map_size; j++)
         {
             if (map[i][j] == THUAI7::PlaceType::Space || map[i][j] == THUAI7::PlaceType::Shadow || map[i][j] == THUAI7::PlaceType::Wormhole)
-            {  // 可经过的地点为0，默认(不可以途径)为1
+            {  // 可经过的地点为0，默认(不可以途径)为1 友军为 2
                 Map_grid[i][j] = 0;
                 if (map[i][j] == THUAI7::PlaceType::Space || map[i][j] == THUAI7::PlaceType::Shadow)
                 {
@@ -672,11 +697,6 @@ std::vector<std::vector<int>> Get_Map(IShipAPI& api)
                         Map_grid[i][j] = 1;
                     }
                 }
-                //std::string str_1 = "WormHole Found : (" + std::to_string(i) + "," + std::to_string(j) + ")\n";
-                //std::string str_2 = "WormHole HP :" + std::to_string(hp) + "\n";
-                //api.Print(str_1);
-                //api.Wait();
-                //api.Print(str_2);
             }
             else if (map[i][j] == THUAI7::PlaceType::Resource)
             {
@@ -882,6 +902,8 @@ bool isValid(IShipAPI& api, int x, int y)
 
 const std::vector<Point> findShortestPath(const std::vector<std::vector<int>>& grid, Point start, Point end, IShipAPI& api)
 {
+    // 先更新地图
+    Update_Map(api);
     // 记录每个点是否被访问过
     std::vector<std::vector<bool>> visited(map_size, std::vector<bool>(map_size, false));
     // 记录每个点的前驱节点，用于最后反向回溯路径
@@ -1057,7 +1079,7 @@ void Greedy_Resource(IShipAPI& api)
         y = resource_vec[i].y;
 
         // Greedy算法找到离自己最近的资源
-        if (((cellx <= 25 && x <= 25) || (cellx >= 27 && x >= 27)) && resource_vec[i].produce == false)
+        if (resource_vec[i].produce == false)
         {
             auto path = findShortestPath(Map_grid, {cellx, celly}, {resource_vec[i].x_4p, resource_vec[i].y_4p}, api);
             int size = path.size();
@@ -1532,7 +1554,7 @@ void Greedy_Build(IShipAPI& api, THUAI7::ConstructionType type)
         y = construction_vec[i].y;
 
         // Greedy算法找到离自己最近的资源
-        if (((cellx <= 25 && x <= 25) || (cellx >= 27 && x >= 27)) && construction_vec[i].build == false)
+        if (construction_vec[i].build == false)
         {
             auto path = findShortestPath(Map_grid, {cellx, celly}, {construction_vec[i].x_4c, construction_vec[i].y_4c}, api);
             int size = path.size();
@@ -1587,7 +1609,107 @@ void Greedy_Build(IShipAPI& api, THUAI7::ConstructionType type)
     }
 }
 
-void Military_Module(ITeamAPI& api, int shipno, int type)    //没写完
+void Update_Map(IShipAPI& api)
+{
+    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    auto friendinfo = api.GetShips();
+    int size = friendinfo.size();
+    int selfnumber = api.GetSelfInfo()->playerID;
+
+    if (size <= 0)
+    {
+        return;
+    }
+    else {
+        for (int x = 0; x < map_size; x++)
+        {
+            for (int y = 0; y < map_size; y++)
+            {
+                if (Map_grid[x][y] == 2)
+                {
+                    // 之前判断的友军位置清零
+                    Map_grid[x][y] = 0;
+                }
+            }
+        }
+        for (int i = 0; i < size; i++)
+        {
+            if (friendinfo[i]->playerID == selfnumber)
+            {
+                continue;
+            }
+            else
+            {
+                // 新增友军位置
+                int tempx = friendinfo[i]->x;
+                int tempy = friendinfo[i]->y;
+                Map_grid[tempx][tempy] = 2;
+            }
+
+
+        }
+        api.Print("Map Update Finished!");
+    }
+    int re_size = resource_vec.size();
+    std::vector<my_Resource>& temp = resource_vec;
+    for (int i = 0; i < re_size; i++)
+    {
+        int tempx = temp[i].x;
+        int tempy = temp[i].y;
+        if (Map_grid[tempx+1][tempy] == 0)
+        {
+            temp[i].x_4p = tempx + 1;
+            temp[i].y_4p = tempy;
+        }
+        else if (Map_grid[tempx - 1][tempy] == 0)
+        {
+            temp[i].x_4p = tempx - 1;
+            temp[i].y_4p = tempy;
+        }
+        else if (Map_grid[tempx][tempy + 1] == 0)
+        {
+            temp[i].x_4p = tempx;
+            temp[i].y_4p = tempy + 1;
+        }
+        else if (Map_grid[tempx][tempy - 1] == 0)
+        {
+            temp[i].x_4p = tempx;
+            temp[i].y_4p = tempy - 1;
+        }
+    }
+
+    std::vector<my_Construction> & temp2 = construction_vec;
+    int con_size = temp2.size();
+    for (int i = 0; i < con_size; i++)
+    {
+        int tempx = temp2[i].x;
+        int tempy = temp2[i].y;
+        if (Map_grid[tempx + 1][tempy] == 0)
+        {
+            temp2[i].x_4c = tempx +1;
+            temp2[i].y_4c = tempy;
+        }
+        else if (Map_grid[tempx - 1][tempy] == 0)
+        {
+            temp2[i].x_4c = tempx-1;
+            temp2[i].y_4c = tempy;
+        }
+        else if (Map_grid[tempx][tempy + 1] == 0)
+        {
+            temp2[i].x_4c = tempx;
+            temp2[i].y_4c = tempy + 1;
+        }
+        else if (Map_grid[tempx][tempy - 1] == 0)
+        {
+            temp2[i].x_4c = tempx;
+            temp2[i].y_4c = tempy - 1;
+        }
+    }
+    api.Print("Point Available Updated!");
+    return;
+}
+
+void Military_Module(ITeamAPI& api, int shipno, int type)  // 没写完
 {
     auto ships = api.GetShips();
     int size = ships.size();
@@ -1595,14 +1717,13 @@ void Military_Module(ITeamAPI& api, int shipno, int type)    //没写完
     {
         return;
     }
-    
 }
 
 void Military_Module_weapon(ITeamAPI& api, int shipno, int type)
 {
     auto ships = api.GetShips();
     int size = ships.size();
-    if (shipno > size || size == 0) //船没建好退
+    if (shipno > size || size == 0)  // 船没建好退
     {
         return;
     }
@@ -1618,10 +1739,10 @@ void Military_Module_weapon(ITeamAPI& api, int shipno, int type)
     }
     if (ships[shipno - 1]->shipType == THUAI7::ShipType::MilitaryShip && ships[shipno - 1]->shipType == THUAI7::ShipType::FlagShip)
     {
-        switch (type)   //除电弧炮不认为高级，剩下的都做了级别限制
+        switch (type)  // 除电弧炮不认为高级，剩下的都做了级别限制
         {
             case 1:
-                api.InstallModule(shipno, THUAI7::ModuleType::ModuleLaserGun);  //后悔药式安装，谨慎调用
+                api.InstallModule(shipno, THUAI7::ModuleType::ModuleLaserGun);  // 后悔药式安装，谨慎调用
                 break;
             case 2:
                 if (energy >= 12000 && (ships[shipno - 1]->weaponType == THUAI7::WeaponType::LaserGun || ships[shipno - 1]->weaponType == THUAI7::WeaponType::NullWeaponType))
@@ -1659,14 +1780,14 @@ void Military_Module_armour(ITeamAPI& api, int shipno, int type)
     int energy = api.GetEnergy();
     if (ships[shipno - 1]->shipType == THUAI7::ShipType::MilitaryShip && ships[shipno - 1]->shipType == THUAI7::ShipType::FlagShip)
     {
-        switch (type)  
+        switch (type)
         {
             case 1:
-                if (armortype==THUAI7::ArmorType::NullArmorType&&energy>=6000)
+                if (armortype == THUAI7::ArmorType::NullArmorType && energy >= 6000)
                     api.InstallModule(shipno, THUAI7::ModuleType::ModuleArmor1);
                 break;
             case 2:
-                if (energy >= 12000 && (armortype == THUAI7::ArmorType::NullArmorType||armortype == THUAI7::ArmorType::Armor1))
+                if (energy >= 12000 && (armortype == THUAI7::ArmorType::NullArmorType || armortype == THUAI7::ArmorType::Armor1))
                     api.InstallModule(shipno, THUAI7::ModuleType::ModuleArmor2);
                 break;
             case 3:
