@@ -1290,15 +1290,15 @@ void Build_ALL(IShipAPI& api, THUAI7::ConstructionType type)
         // 因此我们采用十次循环，使得尽可能多建设
         for (int i = 0; i < size; i++)
         {
-            if (((cellx <= 25 && construction_vec[i].x <= 25) || (cellx >= 27 && construction_vec[i].x >= 27)) && construction_vec[i].HP < IntendedHp)
+            if (construction_vec[i].HP < IntendedHp)
             {
                 GoPlace_Loop(api, construction_vec[i].x_4c, construction_vec[i].y_4c);
-                int Hp = api.GetConstructionHp(construction_vec[i].x, construction_vec[i].y);
+                int Hp = api.GetConstructionState(construction_vec[i].x, construction_vec[i].y).second;
                 int round = 0;
                 if (Hp < IntendedHp && round < 85)
                 {
                     int count = 0;
-                    while (Hp < IntendedHp)
+                    while (Hp < IntendedHp && attack(api))  // 已添加御敌退出
                     {
                         api.Construct(type);
                         std::this_thread::sleep_for(std::chrono::milliseconds(50));
@@ -1306,7 +1306,7 @@ void Build_ALL(IShipAPI& api, THUAI7::ConstructionType type)
                         if (count % 10 == 0)
                         {
                             api.Wait();
-                            Hp = api.GetConstructionHp(construction_vec[i].x, construction_vec[i].y);
+                            Hp = api.GetConstructionState(construction_vec[i].x, construction_vec[i].y).second;
                             count = 0;
                             round++;
                             construction_vec[i].HP = Hp;
@@ -1439,15 +1439,16 @@ void Build_Ship(ITeamAPI& api, int shipno, int birthdes)
     }
     return;
 }
+
 void Build_Specific(IShipAPI& api, THUAI7::ConstructionType type, int index)
 {
     // 如果这个建筑物已经建成
     if (index == -1)
-    {//没有符合要求的点
+    {  // 没有符合要求的点
         return;
     }
     // 引用 直接对于对象进行修改
-    my_Construction & construction = construction_vec[index];
+    my_Construction& construction = construction_vec[index];
     int hp = construction.HP;
     if (construction.type == THUAI7::ConstructionType::Community || construction.build == true)
     {
@@ -1456,7 +1457,7 @@ void Build_Specific(IShipAPI& api, THUAI7::ConstructionType type, int index)
             return;
         }
     }
-    else if (construction.type == THUAI7::ConstructionType::Factory || construction.build==true)
+    else if (construction.type == THUAI7::ConstructionType::Factory || construction.build == true)
     {
         if (hp >= 4000)
         {
@@ -1471,14 +1472,13 @@ void Build_Specific(IShipAPI& api, THUAI7::ConstructionType type, int index)
         }
     }
 
-
     // 否则运行到此处
     GoPlace_Loop(api, construction.x_4c, construction.y_4c);
     bool temp;
     int count = 0;
     int round = 0;
     int IntendedHp = 6000;
-    hp = api.GetConstructionHp(construction.x, construction.y);
+    hp = api.GetConstructionState(construction.x, construction.y).second;
     if (type == THUAI7::ConstructionType::Factory)
     {
         IntendedHp = 8000;
@@ -1496,18 +1496,16 @@ void Build_Specific(IShipAPI& api, THUAI7::ConstructionType type, int index)
         count++;
         api.Construct(type);
         std::this_thread::sleep_for(std::chrono::milliseconds(50));
-
         if (count % 10 == 0)
         {
             api.Wait();
-            hp = api.GetConstructionHp(construction.x, construction.y);
+            hp = api.GetConstructionState(construction.x, construction.y).second;
             api.Print("HP is : " + std::to_string(hp) + "\n");
             count = 0;
             round++;
             api.Print(std::to_string(round));
         }
     }
-   
     if (hp == IntendedHp || round > 80)
     {
         api.Print(std::to_string(round));
@@ -1673,16 +1671,14 @@ void Greedy_Build(IShipAPI& api, THUAI7::ConstructionType type)
     int order = -1;
     int x;
     int y;
-
     Update_Map(api);
-
     for (int i = 0; i < size; i++)
     {
         x = construction_vec[i].x;
         y = construction_vec[i].y;
 
         // Greedy算法找到离自己最近的资源
-        if (construction_vec[i].build == false)
+        if (((cellx <= 25 && x <= 25) || (cellx >= 27 && x >= 27)) && construction_vec[i].build == false)
         {
             auto path = findShortestPath(Map_grid, {cellx, celly}, {construction_vec[i].x_4c, construction_vec[i].y_4c}, api);
             int size = path.size();
@@ -1704,7 +1700,7 @@ void Greedy_Build(IShipAPI& api, THUAI7::ConstructionType type)
     x = construction_vec[order].x;
     y = construction_vec[order].y;
     GoPlace_Loop(api, construction_vec[order].x_4c, construction_vec[order].y_4c);
-    int hp = api.GetConstructionHp(x, y);
+    int hp = api.GetConstructionState(x, y).second;
     int round = 0;
     int count = 0;
     while (hp < IntendedHp && round < 85)
@@ -1716,7 +1712,7 @@ void Greedy_Build(IShipAPI& api, THUAI7::ConstructionType type)
         {
             // 每十次进行一次判断与返回
             api.Wait();
-            hp = api.GetConstructionHp(x, y);
+            hp = api.GetConstructionState(x, y).second;
             construction_vec[order].HP = hp;
             count = 0;
             round++;
@@ -1728,7 +1724,6 @@ void Greedy_Build(IShipAPI& api, THUAI7::ConstructionType type)
         // 但是实际上get hp貌似有bug，所以我们加入建造轮数round作为判断标准
         api.Print(std::to_string(round));
         construction_vec[order].build = true;
-        construction_vec[order].group = 1;
         Greedy_Build(api, type);
     }
     else
@@ -2009,14 +2004,12 @@ bool Under_Attack(IShipAPI& api)
     return false;
 }
 
-
-
 bool Attack_Loop_Cons(IShipAPI& api, double angle, my_Construction cons)
 {  // 采用循环攻击方式 避免每攻击一次都要重新进函数，浪费了判断时间
 
     int count = 0;
     int round = 0;
-    int hp = api.GetConstructionHp(cons.x, cons.y);
+    int hp = api.GetConstructionState(cons.x, cons.y).second;
     while (hp > 2000 && round < 50)
     {
         api.Attack(angle);
@@ -2025,7 +2018,7 @@ bool Attack_Loop_Cons(IShipAPI& api, double angle, my_Construction cons)
         if (count % 10 == 0)
         {
             round++;
-            hp = api.GetConstructionHp(cons.x, cons.y);
+            hp = api.GetConstructionState(cons.x, cons.y).second;
             cons.HP = hp;
         }
     }
@@ -2053,7 +2046,7 @@ bool Attack_Cons(IShipAPI& api)
     {
         if (api.HaveView(temp[i].x, temp[i].y))
         {
-            if (temp[i].group != 1 && api.GetConstructionHp(temp[i].x, temp[i].y) != 0)
+            if (temp[i].group != 1 && api.GetConstructionState(temp[i].x, temp[i].y).second != 0)
             {
                 // 判定为敌方 并进行攻击
                 temp[i].group = 2;
