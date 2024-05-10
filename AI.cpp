@@ -1073,6 +1073,9 @@ void Greedy_Resource(IShipAPI& api)
     int order = -1;
     int x;
     int y;
+
+    Update_Map(api);
+
     for (int i = 0; i < size; i++)
     {
         x = resource_vec[i].x;
@@ -1548,6 +1551,9 @@ void Greedy_Build(IShipAPI& api, THUAI7::ConstructionType type)
     int order = -1;
     int x;
     int y;
+
+    Update_Map(api);
+
     for (int i = 0; i < size; i++)
     {
         x = construction_vec[i].x;
