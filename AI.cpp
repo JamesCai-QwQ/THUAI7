@@ -206,6 +206,12 @@ void Construct_Module(ITeamAPI& api, int shipno,int type = 3);
 // 建船函数
 void Build_Ship(ITeamAPI& api, int shipno, int birthdes);
 
+//安装军事模组
+void Military_Module(ITeamAPI& api, int shipno, int type = 0);
+void Military_Module_weapon(ITeamAPI& api, int shipno, int type = 3);
+void Military_Module_armour(ITeamAPI& api, int shipno, int type = 3);
+void Military_Module_shield(ITeamAPI& api, int shipno, int type = 3);
+
 
 /*
 以下是通信接口的定义： 
@@ -1578,5 +1584,141 @@ void Greedy_Build(IShipAPI& api, THUAI7::ConstructionType type)
     {
         api.Print("Abrupted!");
         return;
+    }
+}
+
+void Military_Module(ITeamAPI& api, int shipno, int type)    //没写完
+{
+    auto ships = api.GetShips();
+    int size = ships.size();
+    if (shipno > size || size == 0)
+    {
+        return;
+    }
+    
+}
+
+void Military_Module_weapon(ITeamAPI& api, int shipno, int type)
+{
+    auto ships = api.GetShips();
+    int size = ships.size();
+    if (shipno > size || size == 0) //船没建好退
+    {
+        return;
+    }
+    auto weapontype = ships[shipno - 1]->weaponType;
+    int energy = api.GetEnergy();
+    if (ships[shipno - 1]->shipType == THUAI7::ShipType::CivilianShip)
+    {
+        if (ships[shipno - 1]->weaponType == THUAI7::WeaponType::NullWeaponType && energy >= 10000)
+        {
+            api.InstallModule(shipno, THUAI7::ModuleType::ModuleLaserGun);
+        }
+        return;
+    }
+    if (ships[shipno - 1]->shipType == THUAI7::ShipType::MilitaryShip && ships[shipno - 1]->shipType == THUAI7::ShipType::FlagShip)
+    {
+        switch (type)   //除电弧炮不认为高级，剩下的都做了级别限制
+        {
+            case 1:
+                api.InstallModule(shipno, THUAI7::ModuleType::ModuleLaserGun);  //后悔药式安装，谨慎调用
+                break;
+            case 2:
+                if (energy >= 12000 && (ships[shipno - 1]->weaponType == THUAI7::WeaponType::LaserGun || ships[shipno - 1]->weaponType == THUAI7::WeaponType::NullWeaponType))
+                    api.InstallModule(shipno, THUAI7::ModuleType::ModulePlasmaGun);
+                break;
+            case 3:
+                if (energy >= 13000 && (ships[shipno - 1]->weaponType == THUAI7::WeaponType::LaserGun || ships[shipno - 1]->weaponType == THUAI7::WeaponType::PlasmaGun || ships[shipno - 1]->weaponType == THUAI7::WeaponType::NullWeaponType))
+                    api.InstallModule(shipno, THUAI7::ModuleType::ModuleShellGun);
+                break;
+            case 4:
+                if (energy >= 18000 && ships[shipno - 1]->weaponType != THUAI7::WeaponType::MissileGun)
+                    api.InstallModule(shipno, THUAI7::ModuleType::ModuleMissileGun);
+                break;
+            case 5:
+                if (energy >= 24000 && ships[shipno - 1]->weaponType != THUAI7::WeaponType::ArcGun)
+                    api.InstallModule(shipno, THUAI7::ModuleType::ModuleArcGun);
+                break;
+            default:
+                break;
+        }
+    }
+    else
+        return;
+}
+
+void Military_Module_armour(ITeamAPI& api, int shipno, int type)
+{
+    auto ships = api.GetShips();
+    int size = ships.size();
+    if (shipno > size || size == 0 || ships[shipno - 1]->shipType == THUAI7::ShipType::CivilianShip)
+    {
+        return;
+    }
+    auto armortype = ships[shipno - 1]->armorType;
+    int energy = api.GetEnergy();
+    if (ships[shipno - 1]->shipType == THUAI7::ShipType::MilitaryShip && ships[shipno - 1]->shipType == THUAI7::ShipType::FlagShip)
+    {
+        switch (type)  
+        {
+            case 1:
+                if (armortype==THUAI7::ArmorType::NullArmorType&&energy>=6000)
+                    api.InstallModule(shipno, THUAI7::ModuleType::ModuleArmor1);
+                break;
+            case 2:
+                if (energy >= 12000 && (armortype == THUAI7::ArmorType::NullArmorType||armortype == THUAI7::ArmorType::Armor1))
+                    api.InstallModule(shipno, THUAI7::ModuleType::ModuleArmor2);
+                break;
+            case 3:
+                if (energy >= 18000 && armortype != THUAI7::ArmorType::Armor3)
+                    api.InstallModule(shipno, THUAI7::ModuleType::ModuleArmor3);
+                break;
+            default:
+                break;
+        }
+    }
+    else
+        return;
+}
+
+void Military_Module_shield(ITeamAPI& api, int shipno, int type)
+{
+    auto ships = api.GetShips();
+    int size = ships.size();
+    if (shipno > size || size == 0 || ships[shipno - 1]->shipType == THUAI7::ShipType::CivilianShip)
+    {
+        return;
+    }
+    auto shieldtype = ships[shipno - 1]->shieldType;
+    int energy = api.GetEnergy();
+    if (ships[shipno - 1]->shipType == THUAI7::ShipType::MilitaryShip && ships[shipno - 1]->shipType == THUAI7::ShipType::FlagShip)
+    {
+        switch (type)
+        {
+            case 1:
+                if (shieldtype == THUAI7::ShieldType::NullShieldType && energy >= 6000)
+                    api.InstallModule(shipno, THUAI7::ModuleType::ModuleShield1);
+                break;
+            case 2:
+                if (energy >= 12000 && (shieldtype == THUAI7::ShieldType::NullShieldType || shieldtype == THUAI7::ShieldType::Shield1))
+                    api.InstallModule(shipno, THUAI7::ModuleType::ModuleArmor2);
+                break;
+            case 3:
+                if (energy >= 18000 && shieldtype != THUAI7::ShieldType::Shield3)
+                    api.InstallModule(shipno, THUAI7::ModuleType::ModuleArmor3);
+                break;
+            default:
+                break;
+        }
+    }
+    else
+        return;
+}
+
+void Strategy_Military(IShipAPI& api)
+{
+    while (attack(api))
+    {
+        GoPlace(api, home_vec[1].x_4p, home_vec[1].y_4p);  // 偷家
     }
 }
