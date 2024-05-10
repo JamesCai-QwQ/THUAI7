@@ -267,7 +267,7 @@ void AI::play(IShipAPI& api)
     else if (this->playerID == 3)
     {
         // 3号军船 ？？？
-        //attack(api);
+        attack(api);
         api.PrintSelfInfo();
     }
     else if (this->playerID == 4)
@@ -275,7 +275,7 @@ void AI::play(IShipAPI& api)
         // 4号旗舰 偷家(不是)
         api.PrintSelfInfo();
         GoPlace_Loop(api, home_vec[1].x + 2, home_vec[1].y);
-        //attack(api);
+        attack(api);
     }
 }
 
@@ -289,15 +289,12 @@ void AI::play(ITeamAPI& api)  // 默认team playerID 为0
     Produce_Module(api, 1, 3);
     Construct_Module(api, 2, 3);
 
-    // 三号船装 Armor / Sheild 
-    api.InstallModule(3, THUAI7::ModuleType::ModuleArmor3);
-    api.InstallModule(3, THUAI7::ModuleType::ModuleMissileGun);
-    api.InstallModule(3, THUAI7::ModuleType::ModuleShield3);
+    Military_Module_armour(api, 3, 3);
+    Military_Module_armour(api, 4, 3);
+    Military_Module_shield(api, 4, 3);
+    Military_Module_shield(api, 4, 3);
+    Military_Module_weapon(api, 4, 5);
 
-
-    api.InstallModule(4, THUAI7::ModuleType::ModuleArmor3);
-    api.InstallModule(4, THUAI7::ModuleType::ModuleMissileGun);
-    api.InstallModule(4, THUAI7::ModuleType::ModuleShield3);
     // 按照ShipTypeDict定义的船型
     // 在出生点位0(默认)进行建造
     Build_Ship(api, 2, 0);
