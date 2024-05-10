@@ -197,139 +197,20 @@ void Build_ALL(IShipAPI& api, THUAI7::ConstructionType type);
 // 贪心算法建造建筑物
 void Greedy_Build(IShipAPI& api, THUAI7::ConstructionType type);
 
-
-void Go_Recover(IShipAPI& api)
-{
-    std::vector<my_Construction>& temp = construction_vec;
-    for (int i = 0; i < temp.size(); i++)
-    {
-        // 有community就去community回血
-        if (temp[i].type == THUAI7::ConstructionType::Community)
-        {
-            GoPlace_Loop(api, temp[i].x_4c, temp[i].y_4c);
-            api.Recover(100);
-        }
-    }
-
-    // 没有community就回家回血
-    if (api.GetHomeHp())
-    {
-        GoPlace_Loop(api, home_vec[0].x + 1, home_vec[0].y);
-        api.Recover(100);
-    }
-    return;
-}
-
+// 回基地回血
+void Go_Recover(IShipAPI& api);
 
 //  是否被攻击
-bool Under_Attack(IShipAPI& api)
-{
-    auto info0 = api.GetSelfInfo();
-    int hp0 = info0->hp;
-    std::this_thread::sleep_for(std::chrono::milliseconds(200));
-    auto info1 = api.GetSelfInfo();
-    int hp1 = info1->hp;
-    if (info1 < info0)
-    {
-        return true;
-    }
-    return false;
-}
+bool Under_Attack(IShipAPI& api);
 
 
-bool Attack_Loop_Cons(IShipAPI& api, double angle, my_Construction cons)
-{// 采用循环攻击方式 避免每攻击一次都要重新进函数，浪费了判断时间
-    
-    int count = 0;
-    int round = 0;
-    int hp = api.GetConstructionHp(cons.x, cons.y);
-    while (hp > 2000 && round < 50)
-    {
-        api.Attack(angle);
-        std::this_thread::sleep_for(std::chrono::milliseconds(50));
-        count++;
-        if (count % 10 == 0)
-        {
-            round++;
-            hp = api.GetConstructionHp(cons.x, cons.y);
-            cons.HP = hp;
+// 攻击建筑物的循环
+bool Attack_Loop_Cons(IShipAPI& api, double angle, my_Construction cons);
 
-        }
-    }
 
-    api.Print("Attack Loop Terminated! (" + std::to_string(cons.x) + "," + std::to_string(cons.y) + ")\n");
-    if (hp == 0)
-    {
-        return true;
-    }
+// 攻击建筑物 
+bool Attack_Cons(IShipAPI& api);
 
-    return false;
-}
-
-bool Attack_Cons(IShipAPI& api)
-{
-    auto selfinfo = api.GetSelfInfo();
-    int x = selfinfo->x;
-    int y = selfinfo->y;
-
-    std::vector<my_Construction>& temp = construction_vec;
-    int size = temp.size();
-    bool judge = false;
-
-    for (int i = 0; i < size; i++)
-    {
-        if (api.HaveView(temp[i].x, temp[i].y))
-        {
-            if (temp[i].group != 1 && api.GetConstructionHp(temp[i].x, temp[i].y) != 0)
-            {
-                // 判定为敌方 并进行攻击
-                temp[i].group = 2;
-                int gridx = api.CellToGrid(temp[i].x);
-                int gridy = api.CellToGrid(temp[i].y);
-
-                if (gridx == x)
-                {
-                    if (gridy > y)
-                    {
-                        judge =Attack_Loop_Cons(api, pi / 2, temp[i]);
-                    }
-                    else
-                    {
-                        judge =Attack_Loop_Cons(api, 3 * pi / 2, temp[i]);
-                    }
-                }
-                else if (gridy == y)
-                {
-                    if (gridx > x)
-                    {
-                        judge=Attack_Loop_Cons(api, 0, temp[i]);
-                    }
-                    else
-                    {
-                        judge=Attack_Loop_Cons(api, pi, temp[i]);
-                    }
-                }
-                else if (gridx - x > 0 && gridy - y > 0)
-                {
-                    double angle = atan((gridy-y) / (gridx-x));
-                    judge=Attack_Loop_Cons(api, angle, temp[i]);
-                }
-                else if (gridx - x > 0 && gridy - y < 0)
-                {
-                    double angle = atan((gridy - y) / (gridx-x)) + 2 * pi;
-                    judge=Attack_Loop_Cons(api, angle, temp[i]);
-                }
-                else
-                {
-                    double angle = atan((gridy -y) / (gridx-x) )+ pi;
-                    judge=Attack_Loop_Cons(api, angle, temp[i]);
-                }
-                
-            }
-        }
-    }
-    return judge;
-}
 
 // 以下是大本营管理相关函数
 
@@ -384,11 +265,13 @@ void AI::play(IShipAPI& api)
     {
         // 1号民船定位 挖矿
         Greedy_Resource(api);
+        Greedy_Build(api, THUAI7::ConstructionType::Factory);
         api.PrintSelfInfo();
     }
     else if (this->playerID == 2)
     {
-        // 2号民船定位 建工厂
+        // 2号民船定位 挖矿+建工厂
+        // 可以设定一个限额，比如造出了军船就润去建厂
         Greedy_Resource(api);
         Build_Specific(api, THUAI7::ConstructionType::Fort, index_close);
         Greedy_Build(api, THUAI7::ConstructionType::Factory);
@@ -408,7 +291,7 @@ void AI::play(IShipAPI& api)
         // 4号旗舰 偷家(不是)
         api.PrintSelfInfo();
         GoPlace_Loop(api, home_vec[1].x + 2, home_vec[1].y);
-        attack(api);
+        api.Attack(pi);
     }
 }
 
@@ -418,15 +301,26 @@ void AI::play(ITeamAPI& api)  // 默认team playerID 为0
     api.PrintTeam();
 
     // 一号船装采集模块
-    // 二号船装建造模块
+    // 二号船装建造、采集模块
     Produce_Module(api, 1, 3);
+    std::this_thread::sleep_for(std::chrono::milliseconds(450));
+    Produce_Module(api, 2, 3);
+    std::this_thread::sleep_for(std::chrono::milliseconds(450));
     Construct_Module(api, 2, 3);
+    std::this_thread::sleep_for(std::chrono::milliseconds(450));
 
+    api.InstallModule(3, THUAI7::ModuleType::ModuleArmor3);
+    api.InstallModule(4, THUAI7::ModuleType::ModuleMissileGun);
     Military_Module_armour(api, 3, 3);
+    std::this_thread::sleep_for(std::chrono::milliseconds(450));
     Military_Module_armour(api, 4, 3);
+    std::this_thread::sleep_for(std::chrono::milliseconds(450));
     Military_Module_shield(api, 4, 3);
+    std::this_thread::sleep_for(std::chrono::milliseconds(450));
     Military_Module_shield(api, 4, 3);
+    std::this_thread::sleep_for(std::chrono::milliseconds(450));
     Military_Module_weapon(api, 4, 5);
+    std::this_thread::sleep_for(std::chrono::milliseconds(450));
 
     // 按照ShipTypeDict定义的船型
     // 在出生点位0(默认)进行建造
@@ -790,6 +684,7 @@ std::vector<std::vector<int>> Get_Map(IShipAPI& api)
     auto map = api.GetFullMap();
     auto selfinfo = api.GetSelfInfo();
     int cellx = api.GridToCell(selfinfo->x);
+    int count_re = -1;
 
     if (selfinfo->teamID == 0)
     {
@@ -847,24 +742,97 @@ std::vector<std::vector<int>> Get_Map(IShipAPI& api)
             }
             else if (map[i][j] == THUAI7::PlaceType::Resource)
             {
+                count_re++;
                 if (map[i + 1][j] == THUAI7::PlaceType::Space || map[i + 1][j] == THUAI7::PlaceType::Shadow)
                 {
                     resource_vec.push_back(my_Resource(i, j, i + 1, j));
+                    if (map[i - 1][j] == THUAI7::PlaceType::Space || map[i - 1][j] == THUAI7::PlaceType::Shadow)
+                    {
+                        resource_vec[count_re].x_4p2 = i - 1;
+                        resource_vec[count_re].y_4p2 = j;
+                        continue;
+                    }
+                    else if (map[i][j + 1] == THUAI7::PlaceType::Space || map[i][j + 1] == THUAI7::PlaceType::Shadow)
+                    {
+                        resource_vec[count_re].x_4p2 = i;
+                        resource_vec[count_re].y_4p2 = j+1;
+                        continue;
+                    }
+                    else if (map[i][j - 1] == THUAI7::PlaceType::Space || map[i][j - 1] == THUAI7::PlaceType::Shadow)
+                    {
+                        resource_vec[count_re].x_4p2 = i;
+                        resource_vec[count_re].y_4p2 = j-1;
+                        continue;
+                    }
                     continue;
                 }
                 else if (map[i - 1][j] == THUAI7::PlaceType::Space || map[i - 1][j] == THUAI7::PlaceType::Shadow)
                 {
                     resource_vec.push_back(my_Resource(i, j, i - 1, j));
+                    if (map[i + 1][j] == THUAI7::PlaceType::Space || map[i - 1][j] == THUAI7::PlaceType::Shadow)
+                    {
+                        resource_vec[count_re].x_4p2 = i + 1;
+                        resource_vec[count_re].y_4p2 = j;
+                        continue;
+                    }
+                    else if (map[i][j + 1] == THUAI7::PlaceType::Space || map[i][j + 1] == THUAI7::PlaceType::Shadow)
+                    {
+                        resource_vec[count_re].x_4p2 = i;
+                        resource_vec[count_re].y_4p2 = j + 1;
+                        continue;
+                    }
+                    else if (map[i][j - 1] == THUAI7::PlaceType::Space || map[i][j - 1] == THUAI7::PlaceType::Shadow)
+                    {
+                        resource_vec[count_re].x_4p2 = i;
+                        resource_vec[count_re].y_4p2 = j - 1;
+                        continue;
+                    }
                     continue;
                 }
                 else if (map[i][j + 1] == THUAI7::PlaceType::Space || map[i][j + 1] == THUAI7::PlaceType::Shadow)
                 {
                     resource_vec.push_back(my_Resource(i, j, i, j + 1));
+                    if (map[i - 1][j] == THUAI7::PlaceType::Space || map[i - 1][j] == THUAI7::PlaceType::Shadow)
+                    {
+                        resource_vec[count_re].x_4p2 = i - 1;
+                        resource_vec[count_re].y_4p2 = j;
+                        continue;
+                    }
+                    else if (map[i+1][j] == THUAI7::PlaceType::Space || map[i+1][j] == THUAI7::PlaceType::Shadow)
+                    {
+                        resource_vec[count_re].x_4p2 = i+1;
+                        resource_vec[count_re].y_4p2 = j;
+                        continue;
+                    }
+                    else if (map[i][j - 1] == THUAI7::PlaceType::Space || map[i][j - 1] == THUAI7::PlaceType::Shadow)
+                    {
+                        resource_vec[count_re].x_4p2 = i;
+                        resource_vec[count_re].y_4p2 = j - 1;
+                        continue;
+                    }
                     continue;
                 }
                 else if (map[i][j - 1] == THUAI7::PlaceType::Space || map[i][j - 1] == THUAI7::PlaceType::Shadow)
                 {
                     resource_vec.push_back(my_Resource(i, j, i, j - 1));
+                    if (map[i + 1][j] == THUAI7::PlaceType::Space || map[i + 1][j] == THUAI7::PlaceType::Shadow)
+                    {
+                        resource_vec[count_re].x_4p2 = i + 1;
+                        resource_vec[count_re].y_4p2 = j;
+                        continue;
+                    }
+                    else if (map[i-1][j] == THUAI7::PlaceType::Space || map[i-1][j] == THUAI7::PlaceType::Shadow)
+                    {
+                        resource_vec[count_re].x_4p2 = i-1;
+                        resource_vec[count_re].y_4p2 = j;
+                        continue;
+                    }
+                    else if (map[i][j + 1] == THUAI7::PlaceType::Space || map[i][j + 1] == THUAI7::PlaceType::Shadow)
+                    {
+                        resource_vec[count_re].x_4p2 = i;
+                        resource_vec[count_re].y_4p2 = j + 1;
+                        continue;
+                    }
                     continue;
                 }
             }
@@ -1250,7 +1218,14 @@ void Greedy_Resource(IShipAPI& api)
     // 前往开采
     x = resource_vec[order].x;
     y = resource_vec[order].y;
-    GoPlace_Loop(api, resource_vec[order].x_4p, resource_vec[order].y_4p);
+    if (api.GetSelfInfo()->playerID % 2 == 1)
+    {
+        GoPlace_Loop(api, resource_vec[order].x_4p, resource_vec[order].y_4p);
+    }
+    else
+    {
+        GoPlace_Loop(api, resource_vec[order].x_4p2, resource_vec[order].y_4p2);
+    }
     int state = api.GetResourceState(x, y);
 
     int count = 0;
@@ -1883,7 +1858,7 @@ void Military_Module_weapon(ITeamAPI& api, int shipno, int type)
     }
     auto weapontype = ships[shipno - 1]->weaponType;
     int energy = api.GetEnergy();
-    if (ships[shipno - 1]->shipType == THUAI7::ShipType::CivilianShip)
+    if (ShipTypeDict[shipno-1] == THUAI7::ShipType::CivilianShip)
     {
         if (ships[shipno - 1]->weaponType == THUAI7::WeaponType::NullWeaponType && energy >= 10000)
         {
@@ -1891,7 +1866,7 @@ void Military_Module_weapon(ITeamAPI& api, int shipno, int type)
         }
         return;
     }
-    if (ships[shipno - 1]->shipType == THUAI7::ShipType::MilitaryShip && ships[shipno - 1]->shipType == THUAI7::ShipType::FlagShip)
+    if (ShipTypeDict[shipno - 1] == THUAI7::ShipType::MilitaryShip || ShipTypeDict[shipno - 1] == THUAI7::ShipType::FlagShip)
     {
         switch (type)  // 除电弧炮不认为高级，剩下的都做了级别限制
         {
@@ -1926,13 +1901,13 @@ void Military_Module_armour(ITeamAPI& api, int shipno, int type)
 {
     auto ships = api.GetShips();
     int size = ships.size();
-    if (shipno > size || size == 0 || ships[shipno - 1]->shipType == THUAI7::ShipType::CivilianShip)
+    if (shipno > size || size == 0 || ShipTypeDict[shipno - 1] == THUAI7::ShipType::CivilianShip)
     {
         return;
     }
     auto armortype = ships[shipno - 1]->armorType;
     int energy = api.GetEnergy();
-    if (ships[shipno - 1]->shipType == THUAI7::ShipType::MilitaryShip && ships[shipno - 1]->shipType == THUAI7::ShipType::FlagShip)
+    if (ShipTypeDict[shipno - 1] == THUAI7::ShipType::MilitaryShip && ShipTypeDict[shipno - 1] == THUAI7::ShipType::FlagShip)
     {
         switch (type)
         {
@@ -1960,13 +1935,13 @@ void Military_Module_shield(ITeamAPI& api, int shipno, int type)
 {
     auto ships = api.GetShips();
     int size = ships.size();
-    if (shipno > size || size == 0 || ships[shipno - 1]->shipType == THUAI7::ShipType::CivilianShip)
+    if (shipno > size || size == 0 || ShipTypeDict[shipno - 1] == THUAI7::ShipType::CivilianShip)
     {
         return;
     }
     auto shieldtype = ships[shipno - 1]->shieldType;
     int energy = api.GetEnergy();
-    if (ships[shipno - 1]->shipType == THUAI7::ShipType::MilitaryShip && ships[shipno - 1]->shipType == THUAI7::ShipType::FlagShip)
+    if (ShipTypeDict[shipno - 1] == THUAI7::ShipType::MilitaryShip && ShipTypeDict[shipno - 1] == THUAI7::ShipType::FlagShip)
     {
         switch (type)
         {
@@ -1996,4 +1971,134 @@ void Strategy_Military(IShipAPI& api)
     {
         GoPlace(api, home_vec[1].x_4p, home_vec[1].y_4p);  // 偷家
     }
+}
+
+void Go_Recover(IShipAPI& api)
+{
+    std::vector<my_Construction>& temp = construction_vec;
+    for (int i = 0; i < temp.size(); i++)
+    {
+        // 有community就去community回血
+        if (temp[i].type == THUAI7::ConstructionType::Community)
+        {
+            GoPlace_Loop(api, temp[i].x_4c, temp[i].y_4c);
+            api.Recover(100);
+        }
+    }
+
+    // 没有community就回家回血
+    if (api.GetHomeHp())
+    {
+        GoPlace_Loop(api, home_vec[0].x + 1, home_vec[0].y);
+        api.Recover(100);
+    }
+    return;
+}
+
+bool Under_Attack(IShipAPI& api)
+{
+    auto info0 = api.GetSelfInfo();
+    int hp0 = info0->hp;
+    std::this_thread::sleep_for(std::chrono::milliseconds(200));
+    auto info1 = api.GetSelfInfo();
+    int hp1 = info1->hp;
+    if (info1 < info0)
+    {
+        return true;
+    }
+    return false;
+}
+
+
+
+bool Attack_Loop_Cons(IShipAPI& api, double angle, my_Construction cons)
+{  // 采用循环攻击方式 避免每攻击一次都要重新进函数，浪费了判断时间
+
+    int count = 0;
+    int round = 0;
+    int hp = api.GetConstructionHp(cons.x, cons.y);
+    while (hp > 2000 && round < 50)
+    {
+        api.Attack(angle);
+        std::this_thread::sleep_for(std::chrono::milliseconds(50));
+        count++;
+        if (count % 10 == 0)
+        {
+            round++;
+            hp = api.GetConstructionHp(cons.x, cons.y);
+            cons.HP = hp;
+        }
+    }
+
+    api.Print("Attack Loop Terminated! (" + std::to_string(cons.x) + "," + std::to_string(cons.y) + ")\n");
+    if (hp == 0)
+    {
+        return true;
+    }
+
+    return false;
+}
+
+bool Attack_Cons(IShipAPI& api)
+{
+    auto selfinfo = api.GetSelfInfo();
+    int x = selfinfo->x;
+    int y = selfinfo->y;
+
+    std::vector<my_Construction>& temp = construction_vec;
+    int size = temp.size();
+    bool judge = false;
+
+    for (int i = 0; i < size; i++)
+    {
+        if (api.HaveView(temp[i].x, temp[i].y))
+        {
+            if (temp[i].group != 1 && api.GetConstructionHp(temp[i].x, temp[i].y) != 0)
+            {
+                // 判定为敌方 并进行攻击
+                temp[i].group = 2;
+                int gridx = api.CellToGrid(temp[i].x);
+                int gridy = api.CellToGrid(temp[i].y);
+
+                if (gridx == x)
+                {
+                    if (gridy > y)
+                    {
+                        judge = Attack_Loop_Cons(api, pi / 2, temp[i]);
+                    }
+                    else
+                    {
+                        judge = Attack_Loop_Cons(api, 3 * pi / 2, temp[i]);
+                    }
+                }
+                else if (gridy == y)
+                {
+                    if (gridx > x)
+                    {
+                        judge = Attack_Loop_Cons(api, 0, temp[i]);
+                    }
+                    else
+                    {
+                        judge = Attack_Loop_Cons(api, pi, temp[i]);
+                    }
+                }
+                else if (gridx - x > 0 && gridy - y > 0)
+                {
+                    double angle = atan((gridy - y) / (gridx - x));
+                    judge = Attack_Loop_Cons(api, angle, temp[i]);
+                }
+                else if (gridx - x > 0 && gridy - y < 0)
+                {
+                    double angle = atan((gridy - y) / (gridx - x)) + 2 * pi;
+                    judge = Attack_Loop_Cons(api, angle, temp[i]);
+                }
+                else
+                {
+                    double angle = atan((gridy - y) / (gridx - x)) + pi;
+                    judge = Attack_Loop_Cons(api, angle, temp[i]);
+                }
+            }
+        }
+    }
+    return judge;
 }
