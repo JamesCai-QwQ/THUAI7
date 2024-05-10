@@ -1293,7 +1293,8 @@ void Build_Specific(IShipAPI& api, THUAI7::ConstructionType type, int index)
     {//没有符合要求的点
         return;
     }
-    my_Construction construction = construction_vec[index];
+    // 引用 直接对于对象进行修改
+    my_Construction & construction = construction_vec[index];
     int hp = construction.HP;
     if (construction.type == THUAI7::ConstructionType::Community || construction.build == true)
     {
