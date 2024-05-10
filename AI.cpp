@@ -1896,13 +1896,13 @@ void Military_Module_armour(ITeamAPI& api, int shipno, int type)
 {
     auto ships = api.GetShips();
     int size = ships.size();
-    if (shipno > size || size == 0 || ShipTypeDict[shipno - 1] == THUAI7::ShipType::CivilianShip)
+    if (shipno > size || size == 0)
     {
         return;
     }
     auto armortype = ships[shipno - 1]->armorType;
     int energy = api.GetEnergy();
-    if (ShipTypeDict[shipno - 1] == THUAI7::ShipType::MilitaryShip && ShipTypeDict[shipno - 1] == THUAI7::ShipType::FlagShip)
+    if (ships[shipno - 1]->shipType != THUAI7::ShipType::NullShipType)
     {
         switch (type)
         {
@@ -1930,13 +1930,13 @@ void Military_Module_shield(ITeamAPI& api, int shipno, int type)
 {
     auto ships = api.GetShips();
     int size = ships.size();
-    if (shipno > size || size == 0 || ships[shipno - 1]->shipType == THUAI7::ShipType::CivilianShip)
+    if (shipno > size || size == 0)
     {
         return;
     }
     auto shieldtype = ships[shipno - 1]->shieldType;
     int energy = api.GetEnergy();
-    if (ships[shipno - 1]->shipType == THUAI7::ShipType::MilitaryShip && ships[shipno - 1]->shipType == THUAI7::ShipType::FlagShip)
+    if (ships[shipno - 1]->shipType != THUAI7::ShipType::NullShipType)
     {
         switch (type)
         {
