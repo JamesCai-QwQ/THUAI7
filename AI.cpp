@@ -1935,13 +1935,13 @@ void Military_Module_shield(ITeamAPI& api, int shipno, int type)
 {
     auto ships = api.GetShips();
     int size = ships.size();
-    if (shipno > size || size == 0 || ShipTypeDict[shipno - 1] == THUAI7::ShipType::CivilianShip)
+    if (shipno > size || size == 0 || ships[shipno - 1]->shipType == THUAI7::ShipType::CivilianShip)
     {
         return;
     }
     auto shieldtype = ships[shipno - 1]->shieldType;
     int energy = api.GetEnergy();
-    if (ShipTypeDict[shipno - 1] == THUAI7::ShipType::MilitaryShip && ShipTypeDict[shipno - 1] == THUAI7::ShipType::FlagShip)
+    if (ships[shipno - 1]->shipType == THUAI7::ShipType::MilitaryShip && ships[shipno - 1]->shipType == THUAI7::ShipType::FlagShip)
     {
         switch (type)
         {
@@ -1951,11 +1951,11 @@ void Military_Module_shield(ITeamAPI& api, int shipno, int type)
                 break;
             case 2:
                 if (energy >= 12000 && (shieldtype == THUAI7::ShieldType::NullShieldType || shieldtype == THUAI7::ShieldType::Shield1))
-                    api.InstallModule(shipno, THUAI7::ModuleType::ModuleArmor2);
+                    api.InstallModule(shipno, THUAI7::ModuleType::ModuleShield2);
                 break;
             case 3:
                 if (energy >= 18000 && shieldtype != THUAI7::ShieldType::Shield3)
-                    api.InstallModule(shipno, THUAI7::ModuleType::ModuleArmor3);
+                    api.InstallModule(shipno, THUAI7::ModuleType::ModuleShield3);
                 break;
             default:
                 break;
