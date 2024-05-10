@@ -267,7 +267,7 @@ void AI::play(IShipAPI& api)
     else if (this->playerID == 3)
     {
         // 3号军船 ？？？
-        attack(api);
+        //attack(api);
         api.PrintSelfInfo();
     }
     else if (this->playerID == 4)
@@ -275,7 +275,7 @@ void AI::play(IShipAPI& api)
         // 4号旗舰 偷家(不是)
         api.PrintSelfInfo();
         GoPlace_Loop(api, home_vec[1].x + 2, home_vec[1].y);
-        attack(api);
+        //attack(api);
     }
 }
 
@@ -1626,7 +1626,8 @@ void Update_Map(IShipAPI& api)
     {
         return;
     }
-    else {
+    else
+    {
         for (int x = 0; x < map_size; x++)
         {
             for (int y = 0; y < map_size; y++)
@@ -1647,12 +1648,10 @@ void Update_Map(IShipAPI& api)
             else
             {
                 // 新增友军位置
-                int tempx = friendinfo[i]->x;
-                int tempy = friendinfo[i]->y;
+                int tempx = api.GridToCell(friendinfo[i]->x);
+                int tempy = api.GridToCell(friendinfo[i]->y);
                 Map_grid[tempx][tempy] = 2;
             }
-
-
         }
         api.Print("Map Update Finished!");
     }
@@ -1714,6 +1713,7 @@ void Update_Map(IShipAPI& api)
     api.Print("Point Available Updated!");
     return;
 }
+
 
 void Military_Module(ITeamAPI& api, int shipno, int type)  // 没写完
 {
