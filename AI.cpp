@@ -168,7 +168,8 @@ void AttackShip(IShipAPI& api);                    // 攻击敌方船只
 void Install_Module(ITeamAPI& api, int number, int type);  // 为船只安装模块 1:Attack 2:Construct 3:Comprehensive
 bool GoCell(IShipAPI& api);                        // 移动到cell中心
 bool attack(IShipAPI& api);                                // 防守反击+判断敌人
-void hide(IShipAPI& api);                                  // 丝血隐蔽                  
+void hide(IShipAPI& api);                                  // 丝血隐蔽         
+const double Count_Angle(IShipAPI& api, int tar_gridx, int tar_girdy);   // 计算方位的函数
 
 
 // 以下是寻路相关的函数
@@ -540,10 +541,17 @@ void AttackShip(IShipAPI& api)
             {
                 count = 0;
                 round++;
+                std::this_thread::sleep_for(std::chrono::milliseconds(50));
+                auto info = api.GetEnemyShips();
+                enemyhp = info[flag]->hp;
+                angle[flag] = Count_Angle(api, info[flag]->x, info[flag]->y);
+                api.Print("Attacking now!");
             }
-            api.Print("Attacking now!");
-            
         }
+    }
+    if (enemyhp == 0)
+    {
+        api.Print("Attack Finished! ");
     }
     delete[] distance;
     delete[] angle;
@@ -2094,4 +2102,32 @@ bool Attack_Cons(IShipAPI& api)
         }
     }
     return judge;
+}
+
+
+const double Count_Angle(IShipAPI& api, int tar_gridx, int tar_gridy)
+{
+    auto selfinfo = api.GetSelfInfo();
+    int myx = selfinfo->x;
+    int myy = selfinfo->y;
+    int disx = tar_gridx - myx;
+    int disy = tar_gridy - myy;
+    double angle;
+    if (disx == 0)
+        if (disy > 0)
+            angle = pi / 2;
+        else
+            angle = -pi / 2;
+    else if (disy == 0)
+        if (disx > 0)
+            angle = 0;
+        else
+            angle = pi;
+    else if (disx > 0 && disy > 0)
+        angle = atan(disy / disx);
+    else if (disx > 0 && disy < 0)
+        angle = atan(disy / disx) + 2 * pi;
+    else
+        angle = atan(disy / disx) + pi;
+    return angle;
 }
