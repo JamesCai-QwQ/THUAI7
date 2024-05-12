@@ -295,7 +295,8 @@ void AI::play(IShipAPI& api)
         api.PrintSelfInfo();
         GoPlace_Loop(api, home_vec[1].x + 2, home_vec[1].y);
         AttackShip(api);
-        api.Attack(pi);
+        if (api.GridToCell(api.GetSelfInfo()->x) == home_vec[1].x + 2 && api.GridToCell(api.GetSelfInfo()->y) == home_vec[1].y)
+            api.Attack(pi);   
     }
 }
 
@@ -473,6 +474,23 @@ void AttackShip(IShipAPI& api)
     int gridx = api.GetSelfInfo()->x;
     int gridy = api.GetSelfInfo()->y;
 
+    // Intend_Distance是根据武器类型确定的攻击距离
+    int intenddis=4000;
+    auto selfinfo = api.GetSelfInfo();
+    auto weapon = selfinfo->weaponType;
+    if (weapon == THUAI7::WeaponType::LaserGun || weapon == THUAI7::WeaponType::PlasmaGun || weapon == THUAI7::WeaponType::ShellGun)
+    {
+        intenddis = 4000;
+    }
+    else if (weapon == THUAI7::WeaponType::NullWeaponType)
+    {
+        intenddis = 0;
+    }
+    else
+    {
+        intenddis = 8000;
+    }
+
     auto Enemys = api.GetEnemyShips();
     int size = Enemys.size();
     if (size == 0 || api.GetSelfInfo()->weaponType == THUAI7::WeaponType::NullWeaponType)
@@ -519,12 +537,16 @@ void AttackShip(IShipAPI& api)
     {
         if (Enemys[i] == nullptr)
             continue;
-        else if (flag == -1)
+        else if (flag == -1 && sqrt(distance[i]) < intenddis)
             flag = i;
-        else if (distance[i] < distance[flag] && sqrt(distance[i]) < 8000)
+        else if ((distance[i] < distance[flag]) && sqrt(distance[i]) < intenddis)
             flag = i;
     }
-    api.Print("This is angle:" + std::to_string(angle[flag]) + "\n This is distance:" + std::to_string(disx[flag]) + "," + std::to_string(disy[flag]) + ")\n");
+    
+    if (flag == -1)
+    {
+        return;
+    }
     int enemyhp = Enemys[flag]->hp;
     int count=0;
     int round = 0;
