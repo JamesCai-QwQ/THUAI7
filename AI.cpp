@@ -589,20 +589,21 @@ void hide(IShipAPI& api)
     int celly = api.GridToCell(gridy);
     auto map = api.GetFullMap();
     int HP = api.GetSelfInfo()->hp;
-
+    
     auto enemyships = api.GetEnemyShips();
     int size = enemyships.size();
+    int enemymosthp = 0;
     bool enemyflag = false;
-    int first_en = -1;
+    int first_en=-1;
     for (int i = 0; i < size; i++)
-        if (enemyships[i]->hp > 0)
+        if (enemyships[i]->hp > 0 && enemyships[i]->weaponType != THUAI7::WeaponType::NullWeaponType && enemyships[i]->hp > enemymosthp)
         {
             enemyflag = true;
+            enemymosthp = enemyships[i]->hp;
             first_en = i;
-            break;
         }
     // 下面是丝血隐蔽（进shadow）
-    for (int i = cellx - 10 < 0 ? 0 : cellx - 10; i < (cellx + 11 > 50 ? 50 : cellx + 11) && map[cellx][celly] != THUAI7::PlaceType::Shadow; i++)  // 需要加逃离敌人+到视野外判断
+    for (int i = cellx - 10 < 0 ? 0 : cellx - 10; i < (cellx + 11 > 50 ? 50 : cellx + 11)&& map[cellx][celly]!=THUAI7::PlaceType::Shadow ; i++)  // 需要加逃离敌人+到视野外判断
     {
         for (int j = celly - sqrt(10 * 10 - (i - cellx) * (i - cellx)) < 0 ? 0 : celly - sqrt(10 * 10 - (i - cellx) * (i - cellx)); j < (celly + sqrt(10 * 10 - (i - cellx) * (i - cellx)) + 1 > 50 ? 50 : celly + sqrt(10 * 10 - (i - cellx) * (i - cellx)) + 1); j++)
         {
@@ -630,7 +631,7 @@ void hide(IShipAPI& api)
             }
         }
     }
-    if (enemyflag)  // 目前只是远离了第一个敌人，不然要SVM了，会比较抽象
+    if(enemyflag) //目前只是远离了第一个敌人，不然要SVM了，会比较抽象
     {
         auto Enemy1x = enemyships[first_en]->x;
         auto Enemy1y = enemyships[first_en]->y;
@@ -638,11 +639,11 @@ void hide(IShipAPI& api)
         int dis1y = Enemy1y - gridy;
         double angle1 = atan(dis1y / dis1x);
         double distance1 = sqrt(dis1x * dis1x + dis1y * dis1y);
-        GoPlace_Loop(api, cellx + (int)((8 - distance1) * cos(angle1 + pi)), celly + (int)((8 - distance1) * sin(angle1 + pi)));
+        GoPlace_Loop(api,cellx+(int)((8-distance1) * cos(angle1+pi)), celly+(int)((8-distance1) * sin(angle1+pi)));
     }
-    // 以下是告知base要装装备，要定义全局变量传递信息，base内的函数可以再进行判断和决策，信息传递要加逻辑和判断
-    /* modl1.number = api.GetSelfInfo()->playerID;
-    modl1.moduletype = THUAI7::ModuleType::ModuleShield3;*/
+        // 以下是告知base要装装备，要定义全局变量传递信息，base内的函数可以再进行判断和决策，信息传递要加逻辑和判断
+        /* modl1.number = api.GetSelfInfo()->playerID;
+        modl1.moduletype = THUAI7::ModuleType::ModuleShield3;*/
 }
 
 bool attack(IShipAPI& api)  // 正在改，缺陷还很多
