@@ -470,13 +470,10 @@ void Install_Module(ITeamAPI& api, int number, int type)
 
 void AttackShip(IShipAPI& api)
 {
-    // 攻击敌方船只的函数
-    int gridx = api.GetSelfInfo()->x;
-    int gridy = api.GetSelfInfo()->y;
-
-    // Intend_Distance是根据武器类型确定的攻击距离
-    int intenddis=4000;
     auto selfinfo = api.GetSelfInfo();
+    int gridx = selfinfo->x;
+    int gridy = selfinfo->y;
+    int intenddis = 4000;
     auto weapon = selfinfo->weaponType;
     if (weapon == THUAI7::WeaponType::LaserGun || weapon == THUAI7::WeaponType::PlasmaGun || weapon == THUAI7::WeaponType::ShellGun)
     {
@@ -485,100 +482,72 @@ void AttackShip(IShipAPI& api)
     else if (weapon == THUAI7::WeaponType::NullWeaponType)
     {
         intenddis = 0;
+        // 没武器就润
+        hide(api);
+        return;
     }
     else
     {
         intenddis = 8000;
     }
 
-    auto Enemys = api.GetEnemyShips();
-    int size = Enemys.size();
-    if (size == 0 || api.GetSelfInfo()->weaponType == THUAI7::WeaponType::NullWeaponType)
+    auto enemys = api.GetEnemyShips();
+    int size = enemys.size();
+    if (size == 0)
     {
         return;
     }
-    // atan是math.h里面的函数(反三角正切)
-    // PS:atan得到的是在 -pi/2 pi/2 之间的
-    // 用于得到敌方船只的方位
+
     int* Enemyx = new int[size];
     int* Enemyy = new int[size];
     double* disx = new double[size];
     double* disy = new double[size];
     double* angle = new double[size];
     double* distance = new double[size];
+    int* hp = new int[size];
     for (int i = 0; i < size; i++)
     {
-        Enemyx[i] = Enemys[i]->x;
-        Enemyy[i] = Enemys[i]->y;
-        disx[i] = Enemyx[i] - gridx;
-        disy[i] = Enemyy[i] - gridy;
-        if (disx[i] == 0)
-            if (disy[i] > 0)
-                angle[i] = pi / 2;
-            else
-                angle[i] = -pi / 2;
-        else if (disy[i] == 0)
-            if (disx[i] > 0)
-                angle[i] = 0;
-            else
-                angle[i] = pi;
-        else if (disx[i] > 0 && disy[i] > 0)
-            angle[i] = atan(disy[i] / disx[i]);
-        else if (disx[i] > 0 && disy[i] < 0)
-            angle[i] = atan(disy[i] / disx[i]) + 2 * pi;
-        else
-            angle[i] = atan(disy[i] / disx[i]) + pi;
-        distance[i] = disy[i] * disy[i] + disx[i] * disx[i];
+        angle[i] = Count_Angle(api, enemys[i]->x, enemys[i]->y);
+        hp[i] = enemys[i]->hp;
     }
-
-    // 先攻击视野内近的
-    int flag = -1;
-    for (int i = 0; i < size; i++)
-    {
-        if (Enemys[i] == nullptr)
-            continue;
-        else if (flag == -1 && sqrt(distance[i]) < intenddis)
-            flag = i;
-        else if ((distance[i] < distance[flag]) && sqrt(distance[i]) < intenddis)
-            flag = i;
-    }
-    
-    if (flag == -1)
-    {
-        return;
-    }
-    int enemyhp = Enemys[flag]->hp;
-    int count=0;
+    int count = 0;
     int round = 0;
-    if (flag != -1)
+
+    for (int i = 0; i < size; i++)
     {
-        while (round < 20 || enemyhp != 0)
+        while (hp[i] > 0)
         {
-            api.Attack(angle[flag]);
-            count++;
-            if (count % 5 == 0)
+            api.Attack(angle[i]);
+            count ++;
+            if (count % 5 == 0 && round < 10)
             {
-                count = 0;
                 round++;
-                std::this_thread::sleep_for(std::chrono::milliseconds(50));
-                auto info = api.GetEnemyShips();
-                enemyhp = info[flag]->hp;
-                angle[flag] = Count_Angle(api, info[flag]->x, info[flag]->y);
-                api.Print("Attacking now!");
-                api.Print("This is Enemy Info:\n hp = :" + std::to_string(info[flag]->hp) + "\n Direction:(" + std::to_string(info[flag]->x) + "," + std::to_string(info[flag]->y) + ")\n");
+                count = 0;
+                std::this_thread::sleep_for(std::chrono::milliseconds(100));
+                enemys = api.GetEnemyShips();
+                int size_temp = enemys.size();
+                if (size_temp <= i)
+                {
+                    // 此时已经全部清除
+                    goto End;
+                }
+                for (int i = 0; i < size_temp; i++)
+                {
+                    angle[i] = Count_Angle(api, enemys[i]->x, enemys[i]->y);
+                    hp[i] = enemys[i]->hp;
+                }
             }
         }
     }
-    if (enemyhp == 0)
-    {
-        api.Print("Attack Finished! ");
-    }
-    delete[] distance;
-    delete[] angle;
-    delete[] disy;
+End:
+
     delete[] disx;
-    delete[] Enemyy;
+    delete[] disy;
     delete[] Enemyx;
+    delete[] Enemyy;
+    delete[] angle;
+    delete[] distance;
+    delete[] hp;
 }
 
 void hide(IShipAPI& api)
