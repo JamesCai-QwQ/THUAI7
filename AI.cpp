@@ -286,6 +286,7 @@ void AI::play(IShipAPI& api)
     else if (this->playerID == 3)
     {
         api.PrintSelfInfo();
+        GoPlace_Loop(api, 20, 25);
         AttackShip(api);
     }
     else if (this->playerID == 4)
@@ -309,19 +310,12 @@ void AI::play(ITeamAPI& api)  // 默认team playerID 为0
     std::this_thread::sleep_for(std::chrono::milliseconds(450));
     Produce_Module(api, 2, 3);
     std::this_thread::sleep_for(std::chrono::milliseconds(450));
-    //Construct_Module(api, 2, 3);
-    //std::this_thread::sleep_for(std::chrono::milliseconds(450));
 
     Military_Module_armour(api, 3, 3);
     std::this_thread::sleep_for(std::chrono::milliseconds(450));
-    Military_Module_armour(api, 4, 3);
+    Military_Module_shield(api, 4, 3);
     std::this_thread::sleep_for(std::chrono::milliseconds(450));
-    // Military_Module_shield(api, 4, 3);
-    // std::this_thread::sleep_for(std::chrono::milliseconds(450));
-    // Military_Module_shield(api, 4, 3);
-    // std::this_thread::sleep_for(std::chrono::milliseconds(450));
-    Military_Module_weapon(api, 4, 5);
-    std::this_thread::sleep_for(std::chrono::milliseconds(450));
+
 
     // 按照ShipTypeDict定义的船型
     // 在出生点位0(默认)进行建造
@@ -490,8 +484,8 @@ void AttackShip(IShipAPI& api)
     // 用于得到敌方船只的方位
     int* Enemyx = new int[size];
     int* Enemyy = new int[size];
-    int* disx = new int[size];
-    int* disy = new int[size];
+    double* disx = new double[size];
+    double* disy = new double[size];
     double* angle = new double[size];
     double* distance = new double[size];
     for (int i = 0; i < size; i++)
@@ -527,10 +521,10 @@ void AttackShip(IShipAPI& api)
             continue;
         else if (flag == -1)
             flag = i;
-        else if (distance[i] < distance[flag] && distance[i] < 64000000)
+        else if (distance[i] < distance[flag] && sqrt(distance[i]) < 8000)
             flag = i;
     }
-
+    api.Print("This is angle:" + std::to_string(angle[flag]) + "\n This is distance:" + std::to_string(disx[flag]) + "," + std::to_string(disy[flag]) + ")\n");
     int enemyhp = Enemys[flag]->hp;
     int count=0;
     int round = 0;
@@ -540,7 +534,7 @@ void AttackShip(IShipAPI& api)
         {
             api.Attack(angle[flag]);
             count++;
-            if (count % 10 == 0)
+            if (count % 5 == 0)
             {
                 count = 0;
                 round++;
@@ -549,6 +543,7 @@ void AttackShip(IShipAPI& api)
                 enemyhp = info[flag]->hp;
                 angle[flag] = Count_Angle(api, info[flag]->x, info[flag]->y);
                 api.Print("Attacking now!");
+                api.Print("This is Enemy Info:\n hp = :" + std::to_string(info[flag]->hp) + "\n Direction:(" + std::to_string(info[flag]->x) + "," + std::to_string(info[flag]->y) + ")\n");
             }
         }
     }
@@ -1069,8 +1064,6 @@ const std::vector<Point> findShortestPath(const std::vector<std::vector<int>>& g
                 visited[newX][newY] = true;
                 parent[newX][newY] = {current.x, current.y};
                 q.push({newX, newY});
-                //std::string temp = "(" + std::to_string(newX) + "," + std::to_string(newY) + ")\n";
-                //api.Print(temp);
             }
         }
     }
@@ -1083,8 +1076,6 @@ const std::vector<Point> findShortestPath(const std::vector<std::vector<int>>& g
         {
             Path.push_back(current);
             current = parent[current.x][current.y];
-           // std::string temp = "Call back : (" + std::to_string(current.x) + "," + std::to_string(current.y) + ")\n";
-           // api.Print(temp);
         }
         Path.push_back(start);
         reverse(Path.begin(), Path.end());
@@ -1096,8 +1087,7 @@ const std::vector<Point> findShortestPath(const std::vector<std::vector<int>>& g
         std::vector<Point> temp;
         return temp;
     }
-    //std::string path_size = std::to_string(Path.size());
-    //api.Print(path_size);
+
     return Path;
 }
 bool Path_Release(std::vector<Point> Path, IShipAPI& api, int count)
@@ -1305,7 +1295,7 @@ void Build_ALL(IShipAPI& api, THUAI7::ConstructionType type)
             if (((cellx <= 25 && construction_vec[i].x <= 25) || (cellx >= 27 && construction_vec[i].x >= 27)) && construction_vec[i].HP < IntendedHp)
             {
                 GoPlace_Loop(api, construction_vec[i].x_4c, construction_vec[i].y_4c);
-                int Hp = api.GetConstructionHp(construction_vec[i].x, construction_vec[i].y);
+                int Hp = api.GetConstructionState(construction_vec[i].x, construction_vec[i].y).second;
                 int round = 0;
                 if (Hp < IntendedHp && round < 85)
                 {
@@ -1318,7 +1308,7 @@ void Build_ALL(IShipAPI& api, THUAI7::ConstructionType type)
                         if (count % 10 == 0)
                         {
                             api.Wait();
-                            Hp = api.GetConstructionHp(construction_vec[i].x, construction_vec[i].y);
+                            Hp = api.GetConstructionState(construction_vec[i].x, construction_vec[i].y).second;
                             count = 0;
                             round++;
                             construction_vec[i].HP = Hp;
@@ -1358,13 +1348,13 @@ void Construct_Module(ITeamAPI& api, int shipno, int type)
             {
                 api.InstallModule(shipno, THUAI7::ModuleType::ModuleConstructor2);
             }
-
             break;
 
         case 3 :
             if (energy > 8000)
             {
-                api.InstallModule(shipno, THUAI7::ModuleType::ModuleConstructor3);
+                           api.InstallModule(shipno, THUAI7::ModuleType::ModuleConstructor3);
+               
             }
 
             break;
@@ -1390,13 +1380,15 @@ void Produce_Module(ITeamAPI& api, int shipno, int type)
     {
         case 2:
             if (producetype == THUAI7::ProducerType::Producer1 && energy > 4000)
-            {   
+            {
                 api.InstallModule(shipno, THUAI7::ModuleType::ModuleProducer2);
             }
         case 3:
             if (producetype != THUAI7::ProducerType::Producer3 && energy > 8000)
             {
-                api.InstallModule(shipno, THUAI7::ModuleType::ModuleProducer3);
+
+                   api.InstallModule(shipno, THUAI7::ModuleType::ModuleProducer3);
+     
             }
     }
     return;
@@ -1420,6 +1412,8 @@ void Build_Ship(ITeamAPI& api, int shipno, int birthdes)
         if (energy > 4000)
         {
             api.BuildShip(THUAI7::ShipType::CivilianShip, birthdes);
+          
+         
         }
         else
         {
@@ -1431,7 +1425,8 @@ void Build_Ship(ITeamAPI& api, int shipno, int birthdes)
     {
         if (energy > 12000)
         {
-            api.BuildShip(THUAI7::ShipType::MilitaryShip, birthdes);
+
+              api.BuildShip(THUAI7::ShipType::MilitaryShip, birthdes);
         }
         else
         {
@@ -1443,6 +1438,7 @@ void Build_Ship(ITeamAPI& api, int shipno, int birthdes)
         if (energy > 50000)
         {
             api.BuildShip(THUAI7::ShipType::FlagShip, birthdes);
+     
         }
         else
         {
@@ -1490,7 +1486,7 @@ void Build_Specific(IShipAPI& api, THUAI7::ConstructionType type, int index)
     int count = 0;
     int round = 0;
     int IntendedHp = 6000;
-    hp = api.GetConstructionHp(construction.x, construction.y);
+    hp = api.GetConstructionState(construction.x, construction.y).second;
     if (type == THUAI7::ConstructionType::Factory)
     {
         IntendedHp = 8000;
@@ -1512,7 +1508,7 @@ void Build_Specific(IShipAPI& api, THUAI7::ConstructionType type, int index)
         if (count % 10 == 0)
         {
             api.Wait();
-            hp = api.GetConstructionHp(construction.x, construction.y);
+            hp = api.GetConstructionState(construction.x, construction.y).second;
             api.Print("HP is : " + std::to_string(hp) + "\n");
             count = 0;
             round++;
@@ -1716,7 +1712,7 @@ void Greedy_Build(IShipAPI& api, THUAI7::ConstructionType type)
     x = construction_vec[order].x;
     y = construction_vec[order].y;
     GoPlace_Loop(api, construction_vec[order].x_4c, construction_vec[order].y_4c);
-    int hp = api.GetConstructionHp(x, y);
+    int hp = api.GetConstructionState(x, y).second;
     int round = 0;
     int count = 0;
     while (hp < IntendedHp && round < 85)
@@ -1728,7 +1724,7 @@ void Greedy_Build(IShipAPI& api, THUAI7::ConstructionType type)
         {
             // 每十次进行一次判断与返回
             api.Wait();
-            hp = api.GetConstructionHp(x, y);
+            int hp = api.GetConstructionState(x, y).second;
             construction_vec[order].HP = hp;
             count = 0;
             round++;
@@ -1913,13 +1909,13 @@ void Military_Module_armour(ITeamAPI& api, int shipno, int type)
 {
     auto ships = api.GetShips();
     int size = ships.size();
-    if (shipno > size || size == 0 || ShipTypeDict[shipno - 1] == THUAI7::ShipType::CivilianShip)
+    if (shipno > size || size == 0 )
     {
         return;
     }
     auto armortype = ships[shipno - 1]->armorType;
     int energy = api.GetEnergy();
-    if (ShipTypeDict[shipno - 1] == THUAI7::ShipType::MilitaryShip || ShipTypeDict[shipno - 1] == THUAI7::ShipType::FlagShip)
+    if (ShipTypeDict[shipno - 1] != THUAI7::ShipType::NullShipType)
     {
         switch (type)
         {
@@ -1947,13 +1943,13 @@ void Military_Module_shield(ITeamAPI& api, int shipno, int type)
 {
     auto ships = api.GetShips();
     int size = ships.size();
-    if (shipno > size || size == 0 || ShipTypeDict[shipno - 1] == THUAI7::ShipType::CivilianShip)
+    if (shipno > size || size == 0 )
     {
         return;
     }
     auto shieldtype = ships[shipno - 1]->shieldType;
     int energy = api.GetEnergy();
-    if (ShipTypeDict[shipno - 1] == THUAI7::ShipType::MilitaryShip || ShipTypeDict[shipno - 1] == THUAI7::ShipType::FlagShip)
+    if (ShipTypeDict[shipno - 1] != THUAI7::ShipType::NullShipType)
     {
         switch (type)
         {
@@ -1963,11 +1959,11 @@ void Military_Module_shield(ITeamAPI& api, int shipno, int type)
                 break;
             case 2:
                 if (energy >= 12000 && (shieldtype == THUAI7::ShieldType::NullShieldType || shieldtype == THUAI7::ShieldType::Shield1))
-                    api.InstallModule(shipno, THUAI7::ModuleType::ModuleArmor2);
+                    api.InstallModule(shipno, THUAI7::ModuleType::ModuleShield2);
                 break;
             case 3:
                 if (energy >= 18000 && shieldtype != THUAI7::ShieldType::Shield3)
-                    api.InstallModule(shipno, THUAI7::ModuleType::ModuleArmor3);
+                    api.InstallModule(shipno, THUAI7::ModuleType::ModuleShield3);
                 break;
             default:
                 break;
@@ -2028,7 +2024,7 @@ bool Attack_Loop_Cons(IShipAPI& api, double angle, my_Construction cons)
 
     int count = 0;
     int round = 0;
-    int hp = api.GetConstructionHp(cons.x, cons.y);
+    int hp = api.GetConstructionState(cons.x, cons.y).second;
     while (hp > 2000 && round < 50)
     {
         api.Attack(angle);
@@ -2037,7 +2033,7 @@ bool Attack_Loop_Cons(IShipAPI& api, double angle, my_Construction cons)
         if (count % 10 == 0)
         {
             round++;
-            hp = api.GetConstructionHp(cons.x, cons.y);
+            hp = api.GetConstructionState(cons.x, cons.y).second;
             cons.HP = hp;
         }
     }
@@ -2065,7 +2061,7 @@ bool Attack_Cons(IShipAPI& api)
     {
         if (api.HaveView(temp[i].x, temp[i].y))
         {
-            if (temp[i].group != 1 && api.GetConstructionHp(temp[i].x, temp[i].y) != 0)
+            if (temp[i].group != 1 && api.GetConstructionState(temp[i].x, temp[i].y).second != 0)
             {
                 // 判定为敌方 并进行攻击
                 temp[i].group = 2;
@@ -2120,8 +2116,8 @@ const double Count_Angle(IShipAPI& api, int tar_gridx, int tar_gridy)
     auto selfinfo = api.GetSelfInfo();
     int myx = selfinfo->x;
     int myy = selfinfo->y;
-    int disx = tar_gridx - myx;
-    int disy = tar_gridy - myy;
+    double disx = tar_gridx - myx;
+    double disy = tar_gridy - myy;
     double angle;
     if (disx == 0)
         if (disy > 0)
