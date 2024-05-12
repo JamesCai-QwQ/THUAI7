@@ -309,11 +309,11 @@ void AI::play(ITeamAPI& api)  // 默认team playerID 为0
     std::this_thread::sleep_for(std::chrono::milliseconds(450));
     Produce_Module(api, 2, 3);
     std::this_thread::sleep_for(std::chrono::milliseconds(450));
-    Construct_Module(api, 2, 3);
-    std::this_thread::sleep_for(std::chrono::milliseconds(450));
-
-    //Military_Module_armour(api, 3, 3);
+    //Construct_Module(api, 2, 3);
     //std::this_thread::sleep_for(std::chrono::milliseconds(450));
+
+    Military_Module_armour(api, 3, 3);
+    std::this_thread::sleep_for(std::chrono::milliseconds(450));
     Military_Module_armour(api, 4, 3);
     std::this_thread::sleep_for(std::chrono::milliseconds(450));
     // Military_Module_shield(api, 4, 3);
