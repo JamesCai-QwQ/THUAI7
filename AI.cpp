@@ -42,7 +42,6 @@ struct Point
 };
 struct Point direction[1000];
 
-
 // 定义四个类，用于执行相关操作
 class my_Resource
 {
@@ -128,8 +127,6 @@ public:
     }
 };
 
-
-
 class my_Wormhole
 {
 public:
@@ -151,15 +148,6 @@ my_Construction closest_2_home;
 std::vector<my_Wormhole> wormhole_vec;
 
 std::vector<std::vector<int>> Map_grid(map_size, std::vector<int>(map_size, 1));
-struct NeedModule
-{
-    int number;
-    THUAI7::ModuleType moduletype;
-};
-NeedModule modl1;
-
-
-
 
 // 以下是调用的函数列表(Basic)
 void Judge(IShipAPI& api);                         // 判断应当进行哪个操作(攻击/获取资源等)
@@ -233,6 +221,14 @@ void Military_Module(ITeamAPI& api, int shipno, int type = 0);
 void Military_Module_weapon(ITeamAPI& api, int shipno, int type = 3);
 void Military_Module_armour(ITeamAPI& api, int shipno, int type = 3);
 void Military_Module_shield(ITeamAPI& api, int shipno, int type = 3);
+
+//军船策略
+void Strategy_Military_Steal(IShipAPI& api);    //偷家
+void Strategy_Military_Guard(IShipAPI& api);    //守家
+void Chase(IShipAPI& api);                      //追击
+
+//找最近的XX地图类型
+std::pair<int, int> findclosest(IShipAPI& api,THUAI7::PlaceType type, int des_x, int des_y); 
 
 /*
 以下是通信接口的定义： 
@@ -327,11 +323,6 @@ void AI::play(ITeamAPI& api)  // 默认team playerID 为0
 
 }
 
-
-
-
-
-
 bool GoCell(IShipAPI& api)
 {
     auto selfinfo = api.GetSelfInfo();
@@ -414,9 +405,6 @@ bool GoCell(IShipAPI& api)
         return false; 
     }
 }
-
-
-
 
 void Base_Operate(ITeamAPI& api)
 {
@@ -652,7 +640,6 @@ bool attack(IShipAPI& api)  // 正在改，缺陷还很多
     else
         return true;
 }
-
 
 void Judge(IShipAPI& api)  // 攻击判断不写在judge里，改为在采集/建造函数内部判断，但移动过程怎么办，写移动里面可能会死循环
 {
@@ -1439,6 +1426,7 @@ void Build_Ship(ITeamAPI& api, int shipno, int birthdes)
     }
     return;
 }
+
 void Build_Specific(IShipAPI& api, THUAI7::ConstructionType type, int index)
 {
     // 如果这个建筑物已经建成
@@ -1965,12 +1953,32 @@ void Military_Module_shield(ITeamAPI& api, int shipno, int type)
         return;
 }
 
-void Strategy_Military(IShipAPI& api)
+void Strategy_Military_Steal(IShipAPI& api)
 {
     while (attack(api))
     {
         GoPlace(api, home_vec[1].x_4p, home_vec[1].y_4p);  // 偷家
     }
+}
+
+void Strategy_Military_Guard(IShipAPI& api)
+{
+    int mytID = api.GetSelfInfo()->teamID;
+    auto shadowforguard = findclosest(api,THUAI7::PlaceType::Shadow, home_vec[mytID].x, home_vec[mytID].y);
+    std::pair<int, int> myplace = {api.GridToCell(api.GetSelfInfo()->x), api.GridToCell(api.GetSelfInfo()->y)};
+    if (myplace == shadowforguard)
+    {
+        Chase(api); //追击借口还没写
+    }
+    else
+    {
+        GoPlace_Loop(api, shadowforguard.first, shadowforguard.second);
+    }
+}
+
+void Chase(IShipAPI& api)
+{
+
 }
 
 void Go_Recover(IShipAPI& api)
@@ -2220,4 +2228,40 @@ Begin:
         goto Begin;
     }
     return;
+}
+
+std::pair<int, int> findclosest(IShipAPI& api,THUAI7::PlaceType type, int des_x, int des_y)
+{
+    std::pair<int, int> closest;
+    auto map = api.GetFullMap();
+    for (int i = 0; i<49 ; i++)
+    {
+        for (int j = 0; j <= i; j++)
+        {
+            if (des_x + j < 50 && des_y+(i-j)<=50 && map[des_x + j][des_y+(i-j)] == type)
+            {
+                closest.first = des_x + j;
+                closest.second = des_y+(i-j);
+                return closest;
+            }
+            if (des_x + j < 50 && des_y - (i - j) <= 50 >0 &&map[des_x + j][des_y - (i - j)] == type)
+            {
+                closest.first = des_x + j;
+                closest.second = des_y-(i-j);
+                return closest;
+            }
+            if (des_x + j < 50 && des_y + (i - j) <= 50 && map[des_x - j][des_y + (i - j)] == type)
+            {
+                closest.first = des_x - j;
+                closest.second = des_y + (i - j);
+                return closest;
+            }
+            if (des_x - j < 50 && des_y - (i - j) <= 50 && map[des_x - j][des_y - (i - j)] == type)
+            {
+                closest.first = des_x - j;
+                closest.second = des_y - (i - j);
+                return closest;
+            }
+        }
+    }
 }
