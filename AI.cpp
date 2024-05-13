@@ -2057,8 +2057,8 @@ bool Attack_Cons(IShipAPI& api)
             {
                 // 判定为敌方 并进行攻击
                 temp[i].group = 2;
-                int gridx = api.CellToGrid(temp[i].x);
-                int gridy = api.CellToGrid(temp[i].y);
+                double gridx = api.CellToGrid(temp[i].x);
+                double gridy = api.CellToGrid(temp[i].y);
 
                 if (gridx == x)
                 {
