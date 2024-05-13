@@ -2250,13 +2250,13 @@ std::pair<int, int> findclosest(IShipAPI& api,THUAI7::PlaceType type, int des_x,
                 closest.second = des_y-(i-j);
                 return closest;
             }
-            if (des_x + j < 50 && des_y + (i - j) < 50 && map[des_x - j][des_y + (i - j)] == type)
+            if (des_x - j >0 && des_y + (i - j) < 50 && map[des_x - j][des_y + (i - j)] == type)
             {
                 closest.first = des_x - j;
                 closest.second = des_y + (i - j);
                 return closest;
             }
-            if (des_x - j < 50 && des_y - (i - j) > 0 && map[des_x - j][des_y - (i - j)] == type)
+            if (des_x - j >0 && des_y - (i - j) > 0 && map[des_x - j][des_y - (i - j)] == type)
             {
                 closest.first = des_x - j;
                 closest.second = des_y - (i - j);
