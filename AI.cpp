@@ -169,6 +169,49 @@ int Judge(IShipAPI& api);
 
 int Judge_4_Civil(IShipAPI& api);
 
+void Judge_4_Base(ITeamAPI& api)
+{
+    auto selfinfo = api.GetSelfInfo();
+    auto ships = api.GetShips();
+    int hp0 = api.GetHomeHp();
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    int hp1 = api.GetHomeHp();
+    auto enemyinfo = api.GetEnemyShips();
+
+    
+    if (hp1 < hp0)
+    {
+        if (ships.size() >= 3)
+        {
+            if (enemyinfo.size() > 0)
+            {
+                int enemyx = api.GridToCell(enemyinfo[0]->x);
+                int enemyy = api.GridToCell(enemyinfo[0]->y);
+                if (enemyx < 10 && enemyy < 10)
+                {
+                    api.SendBinaryMessage(3, "10" + std::to_string(enemyx) + "0" + std::to_string(enemyy));
+                }
+                else if (enemyx < 10)
+                {
+                    api.SendBinaryMessage(3, "10" + std::to_string(enemyx) + std::to_string(enemyy));
+                }
+                else if (enemyy < 10)
+                {
+                    api.SendBinaryMessage(3, "1" + std::to_string(enemyx) + "0" + std::to_string(enemyy));
+                }
+                else
+                {
+                    api.SendBinaryMessage(3, "1" + std::to_string(enemyx) + std::to_string(enemyy));
+                }
+                return;
+            }
+            api.SendBinaryMessage(3, "0");
+        }
+    }
+    return;
+
+
+}
 
 // 以下是寻路相关的函数
 bool isValid(IShipAPI& api, int x, int y);
@@ -196,6 +239,10 @@ void Update_Cons(IShipAPI& api)
             auto info = api.GetConstructionState(construction_vec[i].x, construction_vec[i].y);
             construction_vec[i].group = info.first;
             construction_vec[i].HP = info.second;
+            if (construction_vec[i].HP > 5000)
+            {
+                construction_vec[i].build = true;
+            }
         }
     }
     return;
@@ -297,7 +344,7 @@ void AI::play(IShipAPI& api)
         // 1号民船定位 挖矿
         Judge_4_Civil(api);
         Greedy_Resource(api);
-        Build_ALL(api, THUAI7::ConstructionType::Fort);
+        Greedy_Build(api, THUAI7::ConstructionType::Factory);
     }
     else if (this->playerID == 2)
     {
@@ -306,14 +353,14 @@ void AI::play(IShipAPI& api)
         Judge_4_Civil(api);
         Greedy_Resource_Limit(api, 4);
         Build_Specific(api, THUAI7::ConstructionType::Fort,index_close);
-        Build_ALL(api, THUAI7::ConstructionType::Factory);
+        Greedy_Build(api, THUAI7::ConstructionType::Factory);
     }
     else if (this->playerID == 3)
     {
         // 针对偷家的优化 
         Decode_Me_4_Milit(api);
 
-        auto place = findclosest(api, THUAI7::PlaceType::Shadow, 24, 26);
+        auto place = findclosest(api, THUAI7::PlaceType::Shadow, home_vec[0].x, home_vec[0].y);
         GoPlace_Loop(api, place.first, place.second);
 
         api.PrintSelfInfo();
@@ -335,7 +382,7 @@ void AI::play(ITeamAPI& api)  // 默认team playerID 为0
 {
     api.PrintSelfInfo();
     api.PrintTeam();
-
+    Judge_4_Base(api);
     // 一号船装采集模块
     // 二号船装建造、采集模块
     Produce_Module(api, 1, 3);
@@ -553,7 +600,7 @@ void AttackShip(IShipAPI& api)
 
     for (int i = 0; i < size; i++)
     {
-        while (hp[i] > 0 && sqrt(distance[i]) < intenddis)
+        while (hp[i] > 0 && sqrt(distance[i]) <= intenddis)
         {// hp大于0并且在视野范围内
             api.Attack(angle[i]);
             count ++;
@@ -1306,7 +1353,7 @@ void Build_ALL(IShipAPI& api, THUAI7::ConstructionType type)
         // 因此我们采用十次循环，使得尽可能多建设
         for (int i = 0; i < size; i++)
         {
-            if (((cellx <= 25 && construction_vec[i].x <= 25) || (cellx >= 27 && construction_vec[i].x >= 27)) && construction_vec[i].HP < IntendedHp)
+            if (((cellx <= 25 && construction_vec[i].x <= 25) || (cellx >= 27 && construction_vec[i].x >= 27)) && construction_vec[i].HP < IntendedHp && construction_vec[i].build == false)
             {
                 GoPlace_Loop(api, construction_vec[i].x_4c, construction_vec[i].y_4c);
                 int Hp = api.GetConstructionState(construction_vec[i].x, construction_vec[i].y).second;
@@ -1553,6 +1600,7 @@ void Decode_Me_4_Milit(IShipAPI& api)
         {
             // 回防基地
             GoPlace_Loop(api, home_vec[0].x_4p, home_vec[0].y_4p);
+            AttackShip(api);
         }
         else
         {
