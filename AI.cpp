@@ -309,6 +309,10 @@ void AI::play(IShipAPI& api)
     {
         // 针对偷家的优化 
         Decode_Me_4_Milit(api);
+
+        auto place = findclosest(api, THUAI7::PlaceType::Shadow, 24, 26);
+        GoPlace_Loop(api, place.first, place.second);
+
         api.PrintSelfInfo();
         AttackShip(api);
     }
@@ -550,7 +554,7 @@ void AttackShip(IShipAPI& api)
         {// hp大于0并且在视野范围内
             api.Attack(angle[i]);
             count ++;
-            if (count % 5 == 0 && round < 10)
+            if (count % 5 == 0 && round < 100)
             {
                 round++;
                 count = 0;
@@ -562,10 +566,14 @@ void AttackShip(IShipAPI& api)
                     // 此时已经全部清除
                     goto End;
                 }
-                for (int i = 0; i < size_temp; i++)
+                for (int j = 0; j < size_temp; j++)
                 {
-                    angle[i] = Count_Angle(api, enemys[i]->x, enemys[i]->y);
-                    hp[i] = enemys[i]->hp;
+                    angle[j] = Count_Angle(api, enemys[j]->x, enemys[j]->y);
+                    hp[j] = enemys[j]->hp;
+                }
+                if (hp[i] == 0)
+                {
+                    continue;
                 }
             }
         }
@@ -964,6 +972,7 @@ bool GoPlace(IShipAPI& api, int des_x, int des_y)
         if (j % 6 == 0)
         {  // 每移动六次进行一次GoCell
             GoCell(api);
+            AttackShip(api);
         }
         if (direction[j].x == -1)
         {
