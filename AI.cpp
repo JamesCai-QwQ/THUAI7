@@ -297,6 +297,7 @@ void AI::play(IShipAPI& api)
         // 1号民船定位 挖矿
         Judge_4_Civil(api);
         Greedy_Resource(api);
+        Build_ALL(api, THUAI7::ConstructionType::Fort);
     }
     else if (this->playerID == 2)
     {
@@ -304,6 +305,8 @@ void AI::play(IShipAPI& api)
         // 可以设定一个限额，比如造出了军船就润去建厂
         Judge_4_Civil(api);
         Greedy_Resource_Limit(api, 4);
+        Build_Specific(api, THUAI7::ConstructionType::Fort,index_close);
+        Build_ALL(api, THUAI7::ConstructionType::Factory);
     }
     else if (this->playerID == 3)
     {
@@ -351,7 +354,7 @@ void AI::play(ITeamAPI& api)  // 默认team playerID 为0
     Build_Ship(api, 3, 0);
     if (api.GetShips().size() == 3)
     {
-        Produce_Module(api, 2, 3);
+        Construct_Module(api, 2, 3);
     }
     Build_Ship(api, 4, 0);
 
