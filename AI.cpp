@@ -234,26 +234,9 @@ void Construct_Module(ITeamAPI& api, int shipno,int type = 3);
 void Build_Ship(ITeamAPI& api, int shipno, int birthdes);
 
 // 建船总函数
-void Base_Build_Ship(ITeamAPI& api, int shipno, int birthdes)
-{
-    auto ships = api.GetShips();
-    if (ships.size() == 1 && ships[0]->shipType == THUAI7::ShipType::CivilianShip)
-    {   // 初始情况
-        Build_Ship(api, 2, 0);
-    }
-    else if (ships.size() == 2 && ships[0]->shipType == THUAI7::ShipType::CivilianShip && ships[1]->shipType == THUAI7::ShipType::CivilianShip)
-    {   // 建设军船
-        Build_Ship(api ,3, 0);
-    }
-    else if (ships.size() == 2 && ships[0]->shipType == THUAI7::ShipType::MilitaryShip)
-    {   // 无剩余民船
-        Build_Ship(api, 1, 0);
-    }
-    else if (ships.size() == 3 && ships[2]->shipType == THUAI7::ShipType::MilitaryShip)
-    {
-        Build_Ship(api,4,0);
-    }
-}
+void Base_Build_Ship(ITeamAPI& api,int birthdes);
+
+
 
 
 
@@ -269,143 +252,9 @@ void Strategy_Military_Guard(IShipAPI& api);  // 守家
 void Chase(IShipAPI& api);                    // 追击
 
 void Resource_Attack(IShipAPI& api);          //(从别的队学来的) 遍历敌方Resource并攻击民船
-void Resource_Attack(IShipAPI& api)           
-{
-    Get_Map(api);
-    auto selfinfo = api.GetSelfInfo();
-    int gridx = selfinfo->x;
-    int gridy = selfinfo->y;
-    int cellx = api.GridToCell(gridx);
-    int celly = api.GridToCell(gridy);
 
-    int size = resource_vec.size();
-    if (size == 0)
-    {
-        api.Print("Please Get Resource ! ");
-        return;
-    }
-    // minimum表示路径最小值
-    int minimum = 1000;
-    // order表示最小对应的编号
-    int order = -1;
-    int x;
-    int y;
+void Construction_Attack(IShipAPI& api);
 
-    Update_Map(api);
-
-    Start:
-    for (int i = 0; i < size; i++)
-    {
-        x = resource_vec[i].x;
-        y = resource_vec[i].y;
-
-        // Greedy算法找到离自己最近的资源,且是敌方的
-        if (resource_vec[i].produce == false && ((selfinfo->teamID==0 && x > 25) ||(selfinfo->teamID==1 && x<23)))
-        {
-            auto path = findShortestPath(Map_grid, {cellx, celly}, {resource_vec[i].x_4p, resource_vec[i].y_4p}, api);
-            int size = path.size();
-            if (size < minimum && size > 0)
-            {
-                minimum = size;
-                order = i;
-            }
-        }
-    }
-    if (order == -1)
-    {
-        // order==-1表示未发现符合要求的
-        api.Print("Finished!");
-        return;
-    }
-
-    // 前往开采
-    x = resource_vec[order].x;
-    y = resource_vec[order].y;
-    if (api.GetSelfInfo()->playerID % 2 == 1)
-    {
-        GoPlace_Loop(api, resource_vec[order].x_4p, resource_vec[order].y_4p);
-    }
-    else
-    {
-        GoPlace_Loop(api, resource_vec[order].x_4p2, resource_vec[order].y_4p2);
-    }
-
-
-    if (api.GetEnemyShips().size() > 0)
-    {
-        resource_vec[order].produce = true;
-        AttackShip(api);
-    }
-    else
-    {
-        resource_vec[order].produce = true;
-        goto Start;
-    }
-    return;
-}
-void Construction_Attack(IShipAPI& api)
-{
-    int size = construction_vec.size();
-    auto selfinfo = api.GetSelfInfo();
-
-
-    if (size == 0 || selfinfo->weaponType==THUAI7::WeaponType::NullWeaponType)
-    {
-        return;
-    }
-    else
-    {
-        for (int j = 0; j < size; j++)
-        {
-            if (construction_vec[j].build == false && ((selfinfo->teamID == 0 && construction_vec[j].x > 25) || (selfinfo->teamID == 1 && construction_vec[j].x < 23)))
-            {
-                GoPlace_Loop(api, construction_vec[j].x_4c, construction_vec[j].y_4c);
-                if (construction_vec[j].x_4c - construction_vec[j].x == 1)
-                {
-                    Attack_Loop_Cons(api, pi, construction_vec[j]);
-                }
-                else if (construction_vec[j].x_4c - construction_vec[j].x == -1)
-                {
-                    Attack_Loop_Cons(api, 0, construction_vec[j]);
-                }
-                else if (construction_vec[j].y_4c - construction_vec[j].y == 1)
-                {
-                    Attack_Loop_Cons(api, 3 * pi / 2, construction_vec[j]);
-                }
-                else
-                {
-                    Attack_Loop_Cons(api, pi / 2, construction_vec[j]);
-                }
-            }
-            construction_vec[j].build = true;
-        }
-        for (int j = 0; j < size; j++)
-        {
-            if (construction_vec[j].build == false && ((selfinfo->teamID == 0 && construction_vec[j].x < 23) || (selfinfo->teamID == 1 && construction_vec[j].x > 25)))
-            {
-                GoPlace_Loop(api, construction_vec[j].x_4c, construction_vec[j].y_4c);
-                if (construction_vec[j].x_4c - construction_vec[j].x == 1)
-                {
-                    Attack_Loop_Cons(api, pi, construction_vec[j]);
-                }
-                else if (construction_vec[j].x_4c - construction_vec[j].x == -1)
-                {
-                    Attack_Loop_Cons(api, 0, construction_vec[j]);
-                }
-                else if (construction_vec[j].y_4c - construction_vec[j].y == 1)
-                {
-                    Attack_Loop_Cons(api, 3 * pi / 2, construction_vec[j]);
-                }
-                else
-                {
-                    Attack_Loop_Cons(api, pi / 2, construction_vec[j]);
-                }
-            }
-            construction_vec[j].build = true;
-        }
-    }
-    return;
-}
 
 
 // 找最近的XX地图类型
@@ -461,11 +310,9 @@ void AI::play(IShipAPI& api)
         Greedy_Build(api, THUAI7::ConstructionType::Factory);
         Greedy_Resource(api);
     }
-    else if (api.GetShips().size() == 3 || this->playerID==3)
+    else if (this->playerID == 3)
     {
-     
-        
-        // 针对偷家的优化 
+        // 针对偷家的优化
         auto place = findclosest(api, THUAI7::PlaceType::Shadow, home_vec[0].x, home_vec[0].y);
         GoPlace_Loop(api, place.first, place.second);
         api.PrintSelfInfo();
@@ -476,97 +323,67 @@ void AI::play(IShipAPI& api)
         else
         {
             Construction_Attack(api);
+            Resource_Attack(api);
             GoPlace_Loop(api, home_vec[1].x + 2, home_vec[1].y);
             AttackShip(api);
             if (api.GridToCell(api.GetSelfInfo()->x) == home_vec[1].x + 2 && api.GridToCell(api.GetSelfInfo()->y) == home_vec[1].y)
-                api.Attack(pi);  
+                api.Attack(pi);
         }
-
-
 
     }
     else if (this->playerID == 4)
     {
-        // 4号旗舰 偷家(不是)
+        // 4号 偷家(不是)
         api.PrintSelfInfo();
-        int hp;
+        GoPlace_Loop(api, home_vec[1].x + 2, home_vec[1].y);
+        
+        if ((api.GridToCell(api.GetSelfInfo()->x) == home_vec[1].x + 2) && api.GridToCell(api.GetSelfInfo()->y) == home_vec[1].y)
+        {
+            api.Attack(pi);
+        }
         if (api.GetSelfInfo()->teamID == 0)
         {
-            int hp = api.GetGameInfo()->blueHomeHp;
-            if (hp == 0)
+            if (api.GetGameInfo()->blueHomeHp == 0)
             {
-                return;
-            }
-            GoPlace_Loop(api, home_vec[1].x + 2, home_vec[1].y);
-            int count = 0;
-            while (hp > 0)
-            {
-                count++;
-                api.Attack(pi);
-                if (count == 10)
-                {
-                    count = 0;
-                    std::this_thread::sleep_for(std::chrono::milliseconds(100));
-                    hp = api.GetGameInfo()->blueHomeHp;
-                }
+                Resource_Attack(api);
+                Construction_Attack(api);
             }
         }
         else
         {
-            int hp = api.GetGameInfo()->redHomeHp;
-            if (hp == 0)
+            if (api.GetGameInfo()->redHomeHp == 0)
             {
-                return;
-            }
-            GoPlace_Loop(api, home_vec[1].x + 2, home_vec[1].y);
-            int count = 0;
-            while (hp > 0)
-            {
-                count++;
-                api.Attack(pi);
-                if (count == 10)
-                {
-                    count = 0;
-                    std::this_thread::sleep_for(std::chrono::milliseconds(100));
-                    hp = api.GetGameInfo()->redHomeHp;
-                }
+                Resource_Attack(api);
+                Construction_Attack(api);
             }
         }
-        Resource_Attack(api);
-        Construction_Attack(api);
     }
 }
 
 void AI::play(ITeamAPI& api)  // 默认team playerID 为0
 {
-
     api.PrintSelfInfo();
     api.PrintTeam();
-    // 一号船装采集模块
-    // 二号船装建造、采集模块
+
     Produce_Module(api, 1, 3);
+
     Produce_Module(api, 2, 3);
+    Base_Build_Ship(api,0);
 
-
-    // 按照ShipTypeDict定义的船型
-    // 在出生点位0(默认)进行建造
-    Build_Ship(api, 1, 0);
-    Build_Ship(api, 2, 0);
-    Build_Ship(api, 3, 0);
-            Build_Ship(api, 4, 0);
-
+    if (api.GetShips().size() == 3)
+    {
+        Military_Module_weapon(api, 3, 4);
+    }
+    
     if (api.GetShips().size() == 4)
     {
         Construct_Module(api, 2, 3);
         Military_Module_shield(api, 4, 3);
         Military_Module_armour(api, 4, 3);
         Military_Module_weapon(api, 4, 4);
-        Military_Module_shield(api, 3, 3);
-
-        
+        Military_Module_armour(api, 3, 4);
+        Military_Module_shield(api, 3, 4);
     }
-
-
 }
 
 
@@ -599,18 +416,12 @@ bool GoCell(IShipAPI& api)
     //返回一些关于CELL坐标信息
     std::string strx = std::to_string(cellx);
     std::string stry = std::to_string(celly);
-    api.Print("GoCell Called");
-    api.Print("This is current cell_X");
-    api.Print(strx);
-    api.Print("This is current cell_Y");
-    api.Print(stry);
 
     int Gcellx = 1000 * cellx + 500;
     int Gcelly = 1000 * celly + 500;
 
     if (abs(Gcellx - gridx) <= 30 && abs(Gcelly - gridy) <= 30)
     {
-        api.Print("Already Finished!");
         return true;
     }
     else
@@ -677,6 +488,79 @@ void Base_Operate(ITeamAPI& api)
     }
     return;
 }
+void Resource_Attack(IShipAPI& api)
+{
+    Get_Map(api);
+    auto selfinfo = api.GetSelfInfo();
+    int gridx = selfinfo->x;
+    int gridy = selfinfo->y;
+    int cellx = api.GridToCell(gridx);
+    int celly = api.GridToCell(gridy);
+
+    int size = resource_vec.size();
+    if (size == 0)
+    {
+        api.Print("Please Get Resource ! ");
+        return;
+    }
+    // minimum表示路径最小值
+    int minimum = 1000;
+    // order表示最小对应的编号
+    int order = -1;
+    int x;
+    int y;
+
+    Update_Map(api);
+
+Start:
+    for (int i = 0; i < size; i++)
+    {
+        x = resource_vec[i].x;
+        y = resource_vec[i].y;
+
+        // Greedy算法找到离自己最近的资源,且是敌方的
+        if (resource_vec[i].produce == false && ((selfinfo->teamID == 0 && x > 25) || (selfinfo->teamID == 1 && x < 23)))
+        {
+            auto path = findShortestPath(Map_grid, {cellx, celly}, {resource_vec[i].x_4p, resource_vec[i].y_4p}, api);
+            int size = path.size();
+            if (size < minimum && size > 0)
+            {
+                minimum = size;
+                order = i;
+            }
+        }
+    }
+    if (order == -1)
+    {
+        // order==-1表示未发现符合要求的
+        api.Print("Finished!");
+        return;
+    }
+
+    // 前往开采
+    x = resource_vec[order].x;
+    y = resource_vec[order].y;
+    if (api.GetSelfInfo()->playerID % 2 == 1)
+    {
+        GoPlace_Loop(api, resource_vec[order].x_4p, resource_vec[order].y_4p);
+    }
+    else
+    {
+        GoPlace_Loop(api, resource_vec[order].x_4p2, resource_vec[order].y_4p2);
+    }
+
+    if (api.GetEnemyShips().size() > 0)
+    {
+        resource_vec[order].produce = true;
+        AttackShip(api);
+    }
+    else
+    {
+        resource_vec[order].produce = true;
+        goto Start;
+    }
+    return;
+}
 
 void Install_Module(ITeamAPI& api, int number, int type)
 {
@@ -717,7 +601,6 @@ void AttackShip(IShipAPI& api)
     int gridy = selfinfo->y;
     int intenddis = 4000;
     auto weapon = selfinfo->weaponType;
-
     double speed = 3.0;
     if (selfinfo->shipType == THUAI7::ShipType::CivilianShip)
     {
@@ -763,7 +646,25 @@ void AttackShip(IShipAPI& api)
     double* angle = new double[5];
     double* distance = new double[5];
     int* hp = new int[5];
+    for (int k = 0; k < 5; k++)
+    {
+        Enemyx[k] = 0;
+        Enemyy[k] = 0;
+        disx[k]=0;
+        disy[k] = 0;
+        angle[k] = 0;
+        distance[k] = 0;
+        hp[k] = 0;
+    }
 
+
+    Start:
+    enemys = api.GetEnemyShips();
+    size = enemys.size();
+    if (size == 0)
+    {
+        return;
+    }
     for (int i = 0; i < size; i++)
     {
         disx[i] = enemys[i]->x - gridx;
@@ -772,44 +673,71 @@ void AttackShip(IShipAPI& api)
         hp[i] = enemys[i]->hp;
         distance[i] = (disx[i] * disx[i]) + (disy[i] * disy[i]);
     }
+
     int count = 0;
     int round = 0;
-
-    if (hp[0] > 0 && sqrt(distance[0]) >= intenddis && sqrt(distance[0]) < 8000)
+    for (int i = 0; i < size; i++)
     {
-        api.Move((distance[0] - intenddis + 100) / (2 * speed), angle[0]);
-        std::this_thread::sleep_for(std::chrono::milliseconds(200));
-        api.Move((distance[0] - intenddis + 100) / (2 * speed), angle[0]);
-        std::this_thread::sleep_for(std::chrono::milliseconds(200));
-    }
-    while (hp[0] > 0 && (sqrt(distance[0]) < intenddis) && round < 30)
-    {  // hp大于0并且在视野范围内
-        api.Attack(angle[0]);
-        count++;
-        if (count % 5 == 0)
-        {
-            round++;
-            count = 0;
-            std::this_thread::sleep_for(std::chrono::milliseconds(50));
-            enemys = api.GetEnemyShips();
-            int size_temp = enemys.size();
-            if (size_temp == 0)
+        if(hp[i] > 0 && sqrt(distance[i]) <= 8000)
+        {  // hp大于0并且在视野范围内
+
+
+            if (sqrt(distance[i]) >= intenddis)
             {
-                kill_number++;
-                return;
+                // 不在射程内
+                // 引入向该方向移动的机制，进行“追击”
+                api.Move((distance[i] - intenddis + 100) / (2 * speed), angle[i]);
+                std::this_thread::sleep_for(std::chrono::milliseconds(400));
+                api.Move((distance[i] - intenddis + 100) / (2 * speed), angle[i]);
+                std::this_thread::sleep_for(std::chrono::milliseconds(400));
             }
-            api.Print("This is Enemy Info:(" + std::to_string(enemys[0]->x) + "," + std::to_string(enemys[0]->y) + "\n");
-            for (int j = 0; j < size_temp; j++)
+
+            // 在射程内，进行攻击
+            while (round < 30)
             {
-                angle[j] = Count_Angle(api, enemys[j]->x, enemys[j]->y);
-                api.Print(std::to_string(enemys[j]->x) + " " + std::to_string(enemys[j]->y));
-                hp[j] = enemys[j]->hp;
-                api.Print(std::to_string(hp[j]));
+                api.Attack(angle[i]);
+                count++;
+
+                if (count % 5 == 0)
+                {
+                    round++;
+                    count = 0;
+                    std::this_thread::sleep_for(std::chrono::milliseconds(150));
+                    enemys = api.GetEnemyShips();
+                    int size_temp = enemys.size();
+                    if (size_temp == 0)
+                    {
+                        // 此时不再有符合条件的敌人
+                        kill_number++;
+                        return;
+                    }
+                    if (size_temp < size || size_temp <= i)
+                    {
+                        // 此时发生了清除，需要重新计算
+                        // 避免数组越界
+                        kill_number++;
+                        goto Start;
+                    }
+                    // 没有发生敌人数量的减少，更新信息之后继续攻击
+                    for (int j = 0; j < size; j++)
+                    {
+                        angle[j] = Count_Angle(api, enemys[j]->x, enemys[j]->y);
+                        hp[j] = enemys[j]->hp;
+                    }
+                    if (hp[i] == 0)
+                    {
+                        kill_number++;
+                        // 这里不应选用continue，因为continue会导致i持续增大
+                        // 很有可能产生越界
+                        // continue;
+                        goto Start;
+                    }
+                }
             }
+
+    
         }
     }
-    AttackShip(api);
-
     delete[] disx;
     delete[] disy;
     delete[] Enemyx;
@@ -817,6 +745,8 @@ void AttackShip(IShipAPI& api)
     delete[] angle;
     delete[] distance;
     delete[] hp;
+
+    return;
 }
 
 
@@ -1649,9 +1579,7 @@ void Produce_Module(ITeamAPI& api, int shipno, int type)
         case 3:
             if (producetype != THUAI7::ProducerType::Producer3 && energy > 8000)
             {
-
                 api.InstallModule(shipno, THUAI7::ModuleType::ModuleProducer3);
-     
             }
     }
     return;
@@ -2692,6 +2620,101 @@ void Judge_4_Base(ITeamAPI& api)
                 return;
             }
             api.SendBinaryMessage(3, "0");
+        }
+    }
+    return;
+}
+
+
+
+void Base_Build_Ship(ITeamAPI& api, int birthdes)
+{
+    auto ships = api.GetShips();
+    int civil_num=0;
+    int milit_num=0;
+    for (int i = 0; i < ships.size(); i++)
+    {
+        if (ships[i]->shipType == THUAI7::ShipType::CivilianShip)
+        {
+            civil_num++;
+        }
+        else if (ships[i]->shipType == THUAI7::ShipType::MilitaryShip || ships[i]->shipType == THUAI7::ShipType::FlagShip)
+        {
+            milit_num++;
+        }
+    }
+    if (civil_num == 1)
+    {
+        Build_Ship(api, 2, birthdes);
+    }
+    else if (civil_num == 2 && milit_num == 0)
+    {
+        Build_Ship(api, 3, birthdes);
+    }
+    else if (civil_num == 2 && milit_num == 1)
+    {
+        Build_Ship(api, 4, birthdes);
+    }
+
+}
+void Construction_Attack(IShipAPI& api)
+{
+    int size = construction_vec.size();
+    auto selfinfo = api.GetSelfInfo();
+
+    if (size == 0 || selfinfo->weaponType == THUAI7::WeaponType::NullWeaponType)
+    {
+        return;
+    }
+    else
+    {
+        for (int j = 0; j < size; j++)
+        {
+            if (construction_vec[j].build == false && ((selfinfo->teamID == 0 && construction_vec[j].x > 25) || (selfinfo->teamID == 1 && construction_vec[j].x < 23)))
+            {
+                GoPlace_Loop(api, construction_vec[j].x_4c, construction_vec[j].y_4c);
+                if (construction_vec[j].x_4c - construction_vec[j].x == 1)
+                {
+                    Attack_Loop_Cons(api, pi, construction_vec[j]);
+                }
+                else if (construction_vec[j].x_4c - construction_vec[j].x == -1)
+                {
+                    Attack_Loop_Cons(api, 0, construction_vec[j]);
+                }
+                else if (construction_vec[j].y_4c - construction_vec[j].y == 1)
+                {
+                    Attack_Loop_Cons(api, 3 * pi / 2, construction_vec[j]);
+                }
+                else
+                {
+                    Attack_Loop_Cons(api, pi / 2, construction_vec[j]);
+                }
+            }
+            construction_vec[j].build = true;
+        }
+        for (int j = 0; j < size; j++)
+        {
+            if (construction_vec[j].build == false && ((selfinfo->teamID == 0 && construction_vec[j].x < 23) || (selfinfo->teamID == 1 && construction_vec[j].x > 25)))
+            {
+                GoPlace_Loop(api, construction_vec[j].x_4c, construction_vec[j].y_4c);
+                if (construction_vec[j].x_4c - construction_vec[j].x == 1)
+                {
+                    Attack_Loop_Cons(api, pi, construction_vec[j]);
+                }
+                else if (construction_vec[j].x_4c - construction_vec[j].x == -1)
+                {
+                    Attack_Loop_Cons(api, 0, construction_vec[j]);
+                }
+                else if (construction_vec[j].y_4c - construction_vec[j].y == 1)
+                {
+                    Attack_Loop_Cons(api, 3 * pi / 2, construction_vec[j]);
+                }
+                else
+                {
+                    Attack_Loop_Cons(api, pi / 2, construction_vec[j]);
+                }
+            }
+            construction_vec[j].build = true;
         }
     }
     return;
