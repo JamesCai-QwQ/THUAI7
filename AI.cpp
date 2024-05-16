@@ -166,10 +166,11 @@ const double Count_Angle(IShipAPI& api, int tar_gridx, int tar_girdy);   // 计�
 
 // JUDGE函数用于判断应当进行什么类型的操作->转接到Attack_Ships/Attack_Cons/Attack_Home
 // 通过不同的返回值转接到不同的函数
-int Judge(IShipAPI& api);
 
+// 用于民船进行局势判断，并且能够发送消息给军船，用于进行协同
 int Judge_4_Civil(IShipAPI& api);
 
+// 用于基地进行求救
 void Judge_4_Base(ITeamAPI& api);
 
 
@@ -296,9 +297,10 @@ void AI::play(IShipAPI& api)
     {
         // 1号民船定位 挖矿
         
-        Greedy_Resource_Limit(api, 5);
+        Greedy_Resource_Limit(api, 4);
         Greedy_Build(api, THUAI7::ConstructionType::Factory);
         Greedy_Resource(api);
+
     }
     else if (this->playerID == 2)
     {
@@ -309,10 +311,12 @@ void AI::play(IShipAPI& api)
         Build_Specific(api, THUAI7::ConstructionType::Fort,index_close);
         Greedy_Build(api, THUAI7::ConstructionType::Factory);
         Greedy_Resource(api);
+        api.SendBinaryMessage(3, "11010");
     }
     else if (this->playerID == 3)
     {
         // 针对偷家的优化
+        Decode_Me_4_Milit(api);
         auto place = findclosest(api, THUAI7::PlaceType::Shadow, home_vec[0].x, home_vec[0].y);
         GoPlace_Loop(api, place.first, place.second);
         api.PrintSelfInfo();
@@ -364,7 +368,7 @@ void AI::play(ITeamAPI& api)  // 默认team playerID 为0
 {
     api.PrintSelfInfo();
     api.PrintTeam();
-
+    Judge_4_Base(api);
     Produce_Module(api, 1, 3);
 
     Produce_Module(api, 2, 3);
@@ -1488,7 +1492,7 @@ void Build_ALL(IShipAPI& api, THUAI7::ConstructionType type)
             if (((cellx <= 25 && construction_vec[i].x <= 25) || (cellx >= 27 && construction_vec[i].x >= 27)) && construction_vec[i].HP < IntendedHp && construction_vec[i].build == false)
             {
                 GoPlace_Loop(api, construction_vec[i].x_4c, construction_vec[i].y_4c);
-                int Hp = api.GetConstructionState(construction_vec[i].x, construction_vec[i].y).second;
+                int Hp = api.GetConstructionState(construction_vec[i].x, construction_vec[i].y)->hp;
                 int round = 0;
                 if (Hp < IntendedHp && round < 85)
                 {
@@ -1501,7 +1505,7 @@ void Build_ALL(IShipAPI& api, THUAI7::ConstructionType type)
                         if (count % 10 == 0)
                         {
                             api.Wait();
-                            Hp = api.GetConstructionState(construction_vec[i].x, construction_vec[i].y).second;
+                            Hp = api.GetConstructionState(construction_vec[i].x, construction_vec[i].y)->hp;
                             count = 0;
                             round++;
                             construction_vec[i].HP = Hp;
@@ -1698,7 +1702,7 @@ void Build_Specific(IShipAPI& api, THUAI7::ConstructionType type, int index)
     int count = 0;
     int round = 0;
     int IntendedHp = 6000;
-    hp = api.GetConstructionState(construction.x, construction.y).second;
+    hp = api.GetConstructionState(construction.x, construction.y)->hp;
     if (type == THUAI7::ConstructionType::Factory)
     {
         IntendedHp = 8000;
@@ -1720,7 +1724,7 @@ void Build_Specific(IShipAPI& api, THUAI7::ConstructionType type, int index)
         if (count % 10 == 0)
         {
             api.Wait();
-            hp = api.GetConstructionState(construction.x, construction.y).second;
+            hp = api.GetConstructionState(construction.x, construction.y)->hp;
             count = 0;
             round++;
             api.Print(std::to_string(round));
@@ -1926,7 +1930,7 @@ void Greedy_Build(IShipAPI& api, THUAI7::ConstructionType type)
     x = construction_vec[order].x;
     y = construction_vec[order].y;
     GoPlace_Loop(api, construction_vec[order].x_4c, construction_vec[order].y_4c);
-    int hp = api.GetConstructionState(x, y).second;
+    int hp = api.GetConstructionState(x, y)->hp;
     int round = 0;
     int count = 0;
     while (hp < IntendedHp && round < 85)
@@ -1938,12 +1942,13 @@ void Greedy_Build(IShipAPI& api, THUAI7::ConstructionType type)
         {
             // 每十次进行一次判断与返回
             api.Wait();
-            int hp = api.GetConstructionState(x, y).second;
+            int hp = api.GetConstructionState(x, y)->hp;
             construction_vec[order].HP = hp;
             count = 0;
             round++;
         }
     }
+    Judge_4_Civil(api);
     if (hp > IntendedHp / 2 || round > 80)
     {  // 如果达到了预期建筑物血量的一半，就标记为已经建造好了
         // 测试建造的情况，（突然断开）
@@ -1966,6 +1971,9 @@ void Update_Map(IShipAPI& api)
     auto friendinfo = api.GetShips();
     int size = friendinfo.size();
     int selfnumber = api.GetSelfInfo()->playerID;
+    auto map = api.GetFullMap();
+
+    int worm_index = 0;
 
     if (size <= 0)
     {
@@ -1981,6 +1989,17 @@ void Update_Map(IShipAPI& api)
                 {
                     // 之前判断的友军位置清零
                     Map_grid[x][y] = 0;
+                }
+                if (map[x][y] == THUAI7::PlaceType::Wormhole)
+                {
+                    int hp = api.GetWormholeHp(x, y);
+                    wormhole_vec[worm_index].HP = hp;
+                    if (hp < 9000 && hp >= 0)
+                    {
+                        // 如果得到的hp大于等于0小于9000
+                        // 即虫洞关闭
+                        Map_grid[x][y] = 1;
+                    }
                 }
             }
         }
@@ -2257,13 +2276,13 @@ bool Attack_Loop_Cons(IShipAPI& api, double angle, my_Construction cons)
 
     int count = 0;
     int round = 0;
-    int team = api.GetConstructionState(cons.x, cons.y).first;
+    int team = api.GetConstructionState(cons.x, cons.y)->teamID;
     if (team == api.GetSelfInfo()->teamID)
     {
         return false;
     }
 
-    int hp = api.GetConstructionState(cons.x, cons.y).second;
+    int hp = api.GetConstructionState(cons.x, cons.y)->teamID;
     while (hp > 1000 && round < 50)
     {
         api.Attack(angle);
@@ -2272,7 +2291,7 @@ bool Attack_Loop_Cons(IShipAPI& api, double angle, my_Construction cons)
         if (count % 10 == 0)
         {
             round++;
-            hp = api.GetConstructionState(cons.x, cons.y).second;
+            hp = api.GetConstructionState(cons.x, cons.y)->hp;
             cons.HP = hp;
         }
     }
@@ -2300,7 +2319,7 @@ bool Attack_Cons(IShipAPI& api)
     {
         if (api.HaveView(temp[i].x, temp[i].y))
         {
-            if (temp[i].group != 1 && api.GetConstructionState(temp[i].x, temp[i].y).second != 0)
+            if (temp[i].group != 1 && api.GetConstructionState(temp[i].x, temp[i].y)->hp != 0)
             {
                 // 判定为敌方 并进行攻击
                 temp[i].group = 2;
@@ -2573,8 +2592,8 @@ void Update_Cons(IShipAPI& api)
         if ((construction_vec[i].x - cellx) * (construction_vec[i].x - cellx) + (construction_vec[i].y - celly) * (construction_vec[i].y - celly) < 64)
         {
             auto info = api.GetConstructionState(construction_vec[i].x, construction_vec[i].y);
-            construction_vec[i].group = info.first;
-            construction_vec[i].HP = info.second;
+            construction_vec[i].group = info->teamID;
+            construction_vec[i].HP = info->hp;
             if (construction_vec[i].HP > 5000)
             {
                 construction_vec[i].build = true;
@@ -2589,7 +2608,7 @@ void Judge_4_Base(ITeamAPI& api)
     auto selfinfo = api.GetSelfInfo();
     auto ships = api.GetShips();
     int hp0 = api.GetHomeHp();
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    std::this_thread::sleep_for(std::chrono::milliseconds(300));
     int hp1 = api.GetHomeHp();
     auto enemyinfo = api.GetEnemyShips();
 
@@ -2654,6 +2673,11 @@ void Base_Build_Ship(ITeamAPI& api, int birthdes)
     else if (civil_num == 2 && milit_num == 1)
     {
         Build_Ship(api, 4, birthdes);
+    }
+    else if (civil_num == 0)
+    {
+        Build_Ship(api, 1, birthdes);
+        Build_Ship(api, 2, birthdes);
     }
 
 }
