@@ -65,7 +65,6 @@ public:
         y = y_;
         x_4p = x4;
         y_4p = y4;
-        produce = false;
     }
 };
 
@@ -256,6 +255,9 @@ void Resource_Attack(IShipAPI& api);          //(从别的队学来的) 遍历�
 
 void Construction_Attack(IShipAPI& api);
 
+// 优势在我(委座高见！)
+bool Advantage(IShipAPI& api);
+
 
 
 // 找最近的XX地图类型
@@ -311,7 +313,6 @@ void AI::play(IShipAPI& api)
         Build_Specific(api, THUAI7::ConstructionType::Fort,index_close);
         Greedy_Build(api, THUAI7::ConstructionType::Factory);
         Greedy_Resource(api);
-        api.SendBinaryMessage(3, "11010");
     }
     else if (this->playerID == 3)
     {
@@ -320,7 +321,7 @@ void AI::play(IShipAPI& api)
         auto place = findclosest(api, THUAI7::PlaceType::Shadow, home_vec[0].x, home_vec[0].y);
         GoPlace_Loop(api, place.first, place.second);
         api.PrintSelfInfo();
-        if (kill_number < 2)
+        if (kill_number < 2 && !Advantage(api))
         {
             AttackShip(api);
         }
@@ -345,21 +346,10 @@ void AI::play(IShipAPI& api)
         {
             api.Attack(pi);
         }
-        if (api.GetSelfInfo()->teamID == 0)
+        if (Advantage(api))
         {
-            if (api.GetGameInfo()->blueHomeHp == 0)
-            {
-                Resource_Attack(api);
-                Construction_Attack(api);
-            }
-        }
-        else
-        {
-            if (api.GetGameInfo()->redHomeHp == 0)
-            {
-                Resource_Attack(api);
-                Construction_Attack(api);
-            }
+            Resource_Attack(api);
+            Construction_Attack(api);
         }
     }
 }
@@ -433,22 +423,22 @@ bool GoCell(IShipAPI& api)
         if (Gcellx < gridx)
         {
             api.MoveUp((gridx - Gcellx)/speed);
-            std::this_thread::sleep_for(std::chrono::milliseconds(450));
+            std::this_thread::sleep_for(std::chrono::milliseconds(400));
         }
         else if (Gcellx > gridx)
         {
             api.MoveDown((Gcellx - gridx)/speed);
-            std::this_thread::sleep_for(std::chrono::milliseconds(450));
+            std::this_thread::sleep_for(std::chrono::milliseconds(400));
         }
         if (Gcelly < gridy)
         {
             api.MoveLeft((gridy - Gcelly)/speed);
-            std::this_thread::sleep_for(std::chrono::milliseconds(450));
+            std::this_thread::sleep_for(std::chrono::milliseconds(400));
         }
         else if (Gcelly > gridy)
         {
             api.MoveRight((Gcelly - gridy)/speed);
-            std::this_thread::sleep_for(std::chrono::milliseconds(450));
+            std::this_thread::sleep_for(std::chrono::milliseconds(400));
         }
         selfinfo = api.GetSelfInfo();
         gridx = selfinfo->x;
@@ -678,68 +668,75 @@ void AttackShip(IShipAPI& api)
         distance[i] = (disx[i] * disx[i]) + (disy[i] * disy[i]);
     }
 
+    // 选择最近的目标攻击
+    int flag = -1;
+    int minimum = distance[0];
+    for (int j = 0; j < size; j++)
+    {
+        if (distance[j] <= minimum && hp[j]>0 && sqrt(distance[j]) <= 8000)
+        {
+            flag = j;
+            minimum = distance[j];
+        }
+    }
+    if (flag == -1)
+    {   // 没有找到正确的目标
+        return;
+    }
     int count = 0;
     int round = 0;
-    for (int i = 0; i < size; i++)
+
+
+    if (sqrt(distance[flag]) >= intenddis)
     {
-        if(hp[i] > 0 && sqrt(distance[i]) <= 8000)
-        {  // hp大于0并且在视野范围内
+        // 不在射程内
+        // 引入向该方向移动的机制，进行“追击”
+        api.Move((distance[flag] - intenddis + 100) / (2 * speed), angle[flag]);
+        std::this_thread::sleep_for(std::chrono::milliseconds(400));
+        api.Move((distance[flag] - intenddis + 100) / (2 * speed), angle[flag]);
+        std::this_thread::sleep_for(std::chrono::milliseconds(400));
+    }
 
+    // 在射程内，进行攻击
+    while (round < 30)
+    {
+        api.Attack(angle[flag]);
+        count++;
 
-            if (sqrt(distance[i]) >= intenddis)
+        if (count % 5 == 0)
+        {
+            round++;
+            count = 0;
+            std::this_thread::sleep_for(std::chrono::milliseconds(150));
+            enemys = api.GetEnemyShips();
+            int size_temp = enemys.size();
+            if (size_temp == 0)
             {
-                // 不在射程内
-                // 引入向该方向移动的机制，进行“追击”
-                api.Move((distance[i] - intenddis + 100) / (2 * speed), angle[i]);
-                std::this_thread::sleep_for(std::chrono::milliseconds(400));
-                api.Move((distance[i] - intenddis + 100) / (2 * speed), angle[i]);
-                std::this_thread::sleep_for(std::chrono::milliseconds(400));
+                // 此时不再有符合条件的敌人
+                kill_number++;
+                return;
             }
-
-            // 在射程内，进行攻击
-            while (round < 30)
+            if (size_temp < size || size_temp <= flag)
             {
-                api.Attack(angle[i]);
-                count++;
-
-                if (count % 5 == 0)
-                {
-                    round++;
-                    count = 0;
-                    std::this_thread::sleep_for(std::chrono::milliseconds(150));
-                    enemys = api.GetEnemyShips();
-                    int size_temp = enemys.size();
-                    if (size_temp == 0)
-                    {
-                        // 此时不再有符合条件的敌人
-                        kill_number++;
-                        return;
-                    }
-                    if (size_temp < size || size_temp <= i)
-                    {
-                        // 此时发生了清除，需要重新计算
-                        // 避免数组越界
-                        kill_number++;
-                        goto Start;
-                    }
-                    // 没有发生敌人数量的减少，更新信息之后继续攻击
-                    for (int j = 0; j < size; j++)
-                    {
-                        angle[j] = Count_Angle(api, enemys[j]->x, enemys[j]->y);
-                        hp[j] = enemys[j]->hp;
-                    }
-                    if (hp[i] == 0)
-                    {
-                        kill_number++;
-                        // 这里不应选用continue，因为continue会导致i持续增大
-                        // 很有可能产生越界
-                        // continue;
-                        goto Start;
-                    }
-                }
+                // 此时发生了清除，需要重新计算
+                // 避免数组越界
+                kill_number++;
+                goto Start;
             }
-
-    
+            // 没有发生敌人数量的减少，更新信息之后继续攻击
+            for (int j = 0; j < size; j++)
+            {
+                angle[j] = Count_Angle(api, enemys[j]->x, enemys[j]->y);
+                hp[j] = enemys[j]->hp;
+            }
+            if (hp[flag] == 0)
+            {
+                kill_number++;
+                // 这里不应选用continue，因为continue会导致i持续增大
+                // 很有可能产生越界
+                // continue;
+                goto Start;
+            }
         }
     }
     delete[] disx;
@@ -1088,7 +1085,7 @@ bool GoPlace(IShipAPI& api, int des_x, int des_y)
         else
             return false;
     }
-    api.Wait();
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
     auto selfinfo = api.GetSelfInfo();
     int cur_gridx = selfinfo->x;
     int cur_gridy = selfinfo->y;
@@ -1141,24 +1138,24 @@ bool GoPlace(IShipAPI& api, int des_x, int des_y)
         if (direction[j].x == -1)
         {
             api.MoveUp(1000 / speed);
-            std::this_thread::sleep_for(std::chrono::milliseconds(450));
+            std::this_thread::sleep_for(std::chrono::milliseconds(400));
 
         }
         else if (direction[j].x == 1)
         {
             api.MoveDown(1000 / speed);
-            std::this_thread::sleep_for(std::chrono::milliseconds(450));
+            std::this_thread::sleep_for(std::chrono::milliseconds(400));
         }
         else if (direction[j].y == -1)
         {
             api.MoveLeft(1000 / speed);
-            std::this_thread::sleep_for(std::chrono::milliseconds(450));
+            std::this_thread::sleep_for(std::chrono::milliseconds(400));
            
         }
         else
         {
             api.MoveRight(1000 / speed);
-            std::this_thread::sleep_for(std::chrono::milliseconds(450));
+            std::this_thread::sleep_for(std::chrono::milliseconds(400));
         }
     }
     GoCell(api);
@@ -1921,7 +1918,7 @@ void Greedy_Build(IShipAPI& api, THUAI7::ConstructionType type)
     }
     if (order == -1)
     {
-        // order==-1表示未发现符合要求的
+        // order == -1 表示未发现符合要求的
         api.Print("Finished!");
         return;
     }
@@ -2742,4 +2739,30 @@ void Construction_Attack(IShipAPI& api)
         }
     }
     return;
+}
+bool Advantage(IShipAPI& api)
+{
+    auto gameinfo = api.GetGameInfo();
+    auto selfinfo = api.GetSelfInfo();
+    if (selfinfo->teamID == 0)
+    {
+        if (gameinfo->redHomeHp > 0)
+        {
+            if (gameinfo->redScore - gameinfo->blueScore >= 100000 || gameinfo->blueHomeHp == 0)
+            {
+                return true;
+            }
+        }
+    }
+    else
+    {
+        if (gameinfo->blueHomeHp > 0)
+        {
+            if (gameinfo->blueScore - gameinfo->redScore >= 100000 || gameinfo->blueHomeHp == 0)
+            {
+                return true;
+            }
+        }
+    }
+    return false;
 }
