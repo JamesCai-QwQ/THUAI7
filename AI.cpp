@@ -497,16 +497,17 @@ void Resource_Attack(IShipAPI& api)
         api.Print("Please Get Resource ! ");
         return;
     }
+
+
+    Update_Map(api);
+
+Start:
     // minimum表示路径最小值
     int minimum = 1000;
     // order表示最小对应的编号
     int order = -1;
     int x;
     int y;
-
-    Update_Map(api);
-
-Start:
     for (int i = 0; i < size; i++)
     {
         x = resource_vec[i].x;
@@ -526,12 +527,34 @@ Start:
     }
     if (order == -1)
     {
+        // 敌方的找不到了QaQ
+        for (int i = 0; i < size; i++)
+        {
+            x = resource_vec[i].x;
+            y = resource_vec[i].y;
+
+            // Greedy算法找到离自己最近的资源,且是己方的
+            if (resource_vec[i].produce == false && ((selfinfo->teamID == 0 && x < 23) || (selfinfo->teamID == 1 && x > 25)))
+            {
+                auto path = findShortestPath(Map_grid, {cellx, celly}, {resource_vec[i].x_4p, resource_vec[i].y_4p}, api);
+                int size = path.size();
+                if (size < minimum && size > 0)
+                {
+                    minimum = size;
+                    order = i;
+                }
+            }
+        }
+    }
+    if (order == -1)
+    {
+        // 双方都没得
         // order==-1表示未发现符合要求的
         api.Print("Finished!");
         return;
     }
 
-    // 前往开采
+    // 前往攻击
     x = resource_vec[order].x;
     y = resource_vec[order].y;
     if (api.GetSelfInfo()->playerID % 2 == 1)
@@ -547,6 +570,7 @@ Start:
     {
         resource_vec[order].produce = true;
         AttackShip(api);
+        goto Start;
     }
     else
     {
@@ -1506,7 +1530,7 @@ void Build_ALL(IShipAPI& api, THUAI7::ConstructionType type)
                         count++;
                         if (count % 10 == 0)
                         {
-                            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+                            std::this_thread::sleep_for(std::chrono::milliseconds(500));
                             if (api.GetConstructionState(construction_vec[i].x, construction_vec[i].y).has_value())
                             {
                                 Hp = api.GetConstructionState(construction_vec[i].x, construction_vec[i].y)->hp;
@@ -1877,7 +1901,7 @@ void Decode_Me(ITeamAPI& api)
 
 void Greedy_Build(IShipAPI& api, THUAI7::ConstructionType type)
 {
-    Start:
+ 
     // 贪心算法按照路径进行建造
     auto selfinfo = api.GetSelfInfo();
     int gridx = selfinfo->x;
@@ -1946,7 +1970,13 @@ void Greedy_Build(IShipAPI& api, THUAI7::ConstructionType type)
     int hp = 0;
     if (api.GetConstructionState(x, y).has_value())
     {
-        hp = api.GetConstructionState(x, y)->hp;
+        auto state = api.GetConstructionState(x, y);
+        hp = state->hp;
+        if (state->teamID != selfinfo->teamID)
+        {
+            construction_vec[order].group = 2;
+            construction_vec[order].build = true;
+        }
     }
     int round = 0;
     int count = 0;
@@ -1961,7 +1991,7 @@ void Greedy_Build(IShipAPI& api, THUAI7::ConstructionType type)
             api.Wait();
             if (api.GetConstructionState(x, y).has_value())
             {
-                int hp = api.GetConstructionState(x, y)->hp;
+                hp = api.GetConstructionState(x, y)->hp;
             }
             construction_vec[order].HP = hp;
             count = 0;
@@ -1969,7 +1999,7 @@ void Greedy_Build(IShipAPI& api, THUAI7::ConstructionType type)
         }
     }
     Judge_4_Civil(api);
-    if (hp > IntendedHp / 2 || round > 80)
+    if (hp == IntendedHp / 2 || round > 80)
     {  // 如果达到了预期建筑物血量的一半，就标记为已经建造好了
         // 测试建造的情况，（突然断开）
         // 但是实际上get hp貌似有bug，所以我们加入建造轮数round作为判断标准
@@ -2300,8 +2330,14 @@ bool Attack_Loop_Cons(IShipAPI& api, double angle, my_Construction cons)
     int hp=0;
     if (api.GetConstructionState(cons.x, cons.y).has_value())
     {
-        int team = api.GetConstructionState(cons.x, cons.y)->teamID;
-        hp = api.GetConstructionState(cons.x, cons.y)->hp;
+        auto state = api.GetConstructionState(cons.x, cons.y);
+        int team = state->teamID;
+        hp = state->hp;
+        auto type = state->constructionType;
+        if (type == THUAI7::ConstructionType::Fort && hp > 8000)
+        {
+            return false;
+        }
     }
     else
     {
@@ -2313,7 +2349,7 @@ bool Attack_Loop_Cons(IShipAPI& api, double angle, my_Construction cons)
     }
 
 
-    while (hp > 1000 && round < 50)
+    while (hp > 0 && round < 50)
     {
         api.Attack(angle);
         std::this_thread::sleep_for(std::chrono::milliseconds(50));
@@ -2321,6 +2357,7 @@ bool Attack_Loop_Cons(IShipAPI& api, double angle, my_Construction cons)
         if (count % 10 == 0)
         {
             round++;
+            std::this_thread::sleep_for(std::chrono::milliseconds(200));
             if (api.GetConstructionState(cons.x, cons.y).has_value())
             {
                 hp = api.GetConstructionState(cons.x, cons.y)->hp;
@@ -2629,9 +2666,9 @@ void Update_Cons(IShipAPI& api)
     {
         if ((construction_vec[i].x - cellx) * (construction_vec[i].x - cellx) + (construction_vec[i].y - celly) * (construction_vec[i].y - celly) < 64)
         {
-            if (!api.GetConstructionState(construction_vec[i].x, construction_vec[i].y).has_value())
+            if (api.GetConstructionState(construction_vec[i].x, construction_vec[i].y).has_value())
             {
-                return;
+                continue;
             }
             auto info = api.GetConstructionState(construction_vec[i].x, construction_vec[i].y);
             construction_vec[i].group = info->teamID;
