@@ -236,6 +236,9 @@ void Build_Ship(ITeamAPI& api, int shipno, int birthdes);
 // 建船总函数
 void Base_Build_Ship(ITeamAPI& api,int birthdes);
 
+// 模组总函数
+void Base_Module_Install(ITeamAPI& api);
+
 
 
 
@@ -359,17 +362,28 @@ void AI::play(ITeamAPI& api)  // 默认team playerID 为0
     api.PrintSelfInfo();
     api.PrintTeam();
     Judge_4_Base(api);
-    Produce_Module(api, 1, 3);
-
-    Produce_Module(api, 2, 3);
+    Base_Module_Install(api);
     Base_Build_Ship(api,0);
+}
 
-    if (api.GetShips().size() == 3)
+
+void Base_Module_Install(ITeamAPI& api)
+{
+    auto ships = api.GetShips();
+    auto selfinfo = api.GetSelfInfo();
+    int id = selfinfo->teamID;
+    int money = selfinfo->energy;
+
+
+    Produce_Module(api, 1, 3);
+    Produce_Module(api, 2, 3);
+
+    if (ships.size() == 3)
     {
         Military_Module_weapon(api, 3, 4);
+        return;
     }
-    
-    if (api.GetShips().size() == 4)
+    if (ships.size() == 4)
     {
         Construct_Module(api, 2, 3);
         Military_Module_shield(api, 4, 3);
@@ -377,11 +391,19 @@ void AI::play(ITeamAPI& api)  // 默认team playerID 为0
         Military_Module_weapon(api, 4, 4);
         Military_Module_armour(api, 3, 4);
         Military_Module_shield(api, 3, 4);
+        return;
     }
+
+    if (ships.size() == 4 && money > 100000)
+    {
+        Military_Module_weapon(api, 1, 1);
+        Military_Module_weapon(api, 2, 1);
+        Military_Module_shield(api, 1, 2);
+        Military_Module_shield(api, 1, 2);
+        return;
+    }
+    return;
 }
-
-
-
 
 
 
@@ -1999,7 +2021,7 @@ void Greedy_Build(IShipAPI& api, THUAI7::ConstructionType type)
         }
     }
     Judge_4_Civil(api);
-    if (hp == IntendedHp / 2 || round > 80)
+    if (hp >= IntendedHp/2 || round > 80)
     {  // 如果达到了预期建筑物血量的一半，就标记为已经建造好了
         // 测试建造的情况，（突然断开）
         // 但是实际上get hp貌似有bug，所以我们加入建造轮数round作为判断标准
