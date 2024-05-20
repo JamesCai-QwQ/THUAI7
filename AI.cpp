@@ -9,6 +9,7 @@
 #include <algorithm>
 
 #define pi 3.14159265358979323846
+#define sqr2 1.4142136
 // 注意不要使用conio.h，Windows.h等非标准库
 // 为假则play()期间确保游戏状态不更新，为真则只保证游戏状态在调用相关方法时不更新，大致一帧更新一次
 extern const bool asynchronous = true;
@@ -25,8 +26,8 @@ extern const std::array<THUAI7::ShipType, 4> ShipTypeDict = {
 
 // 常量申明
 const int map_size = 50;
-int dx[] = {-1, 0, 1, 0};
-int dy[] = {0, -1, 0, 1};
+int dx[] = {1,1,-1,-1,-1, 0, 1, 0};
+int dy[] = {1,-1,1,-1,0, -1, 0, 1};
 int count1 = 0;
 int count2 = 0;
 int index_close = -1;
@@ -381,7 +382,6 @@ void Base_Module_Install(ITeamAPI& api)
     if (ships.size() == 3)
     {
         Military_Module_weapon(api, 3, 4);
-        return;
     }
     if (ships.size() == 4)
     {
@@ -389,9 +389,8 @@ void Base_Module_Install(ITeamAPI& api)
         Military_Module_shield(api, 4, 3);
         Military_Module_armour(api, 4, 3);
         Military_Module_weapon(api, 4, 4);
-        Military_Module_armour(api, 3, 4);
-        Military_Module_shield(api, 3, 4);
-        return;
+        Military_Module_armour(api, 3, 3);
+        Military_Module_shield(api, 3, 3);
     }
 
     if (ships.size() == 4 && money > 100000)
@@ -400,7 +399,6 @@ void Base_Module_Install(ITeamAPI& api)
         Military_Module_weapon(api, 2, 1);
         Military_Module_shield(api, 1, 2);
         Military_Module_shield(api, 1, 2);
-        return;
     }
     return;
 }
@@ -1181,25 +1179,72 @@ bool GoPlace(IShipAPI& api, int des_x, int des_y)
             GoCell(api);
             AttackShip(api);
         }
-        if (direction[j].x == -1)
+        if (direction[j].x == 1 && direction[j].y == 1)
+        {
+            api.Move(250 * sqr2 / speed, pi / 4);
+            std::this_thread::sleep_for(std::chrono::milliseconds(150));
+            api.Move(250 * sqr2 / speed, pi / 4);
+            std::this_thread::sleep_for(std::chrono::milliseconds(150));
+            api.Move(250 * sqr2 / speed, pi / 4);
+            std::this_thread::sleep_for(std::chrono::milliseconds(150));
+            api.Move(250 * sqr2 / speed, pi / 4);
+            std::this_thread::sleep_for(std::chrono::milliseconds(150));
+        }
+        else if (direction[j].x == 1 && direction[j].y == -1)
+        {
+            api.Move(250 * sqr2 / speed, 7*pi / 4);
+            std::this_thread::sleep_for(std::chrono::milliseconds(150));
+            api.Move(250 * sqr2 / speed, 7 * pi / 4);
+            std::this_thread::sleep_for(std::chrono::milliseconds(150));
+            api.Move(250 * sqr2 / speed, 7 * pi / 4);
+            std::this_thread::sleep_for(std::chrono::milliseconds(150));
+            api.Move(250 * sqr2 / speed, 7 * pi / 4);
+            std::this_thread::sleep_for(std::chrono::milliseconds(150));
+        }
+        else if (direction[j].x == -1 && direction[j].y == 1)
+        { 
+            api.Move(250 * sqr2 / speed, 3 * pi / 4);
+            std::this_thread::sleep_for(std::chrono::milliseconds(150));
+            api.Move(250 * sqr2 / speed, 3 * pi / 4);
+            std::this_thread::sleep_for(std::chrono::milliseconds(150));
+            api.Move(250 * sqr2 / speed, 3 * pi / 4);
+            std::this_thread::sleep_for(std::chrono::milliseconds(150));
+            api.Move(250 * sqr2 / speed, 3 * pi / 4);
+            std::this_thread::sleep_for(std::chrono::milliseconds(150));
+        }
+        else if (direction[j].x == -1 && direction[j].y == -1)
+        {
+          
+            api.Move(250 * sqr2 / speed, 5 * pi / 4);
+            std::this_thread::sleep_for(std::chrono::milliseconds(150));
+            api.Move(250 * sqr2 / speed, 5 * pi / 4);
+            std::this_thread::sleep_for(std::chrono::milliseconds(150));
+            api.Move(250 * sqr2 / speed, 5 * pi / 4);
+            std::this_thread::sleep_for(std::chrono::milliseconds(150));
+            api.Move(250 * sqr2 / speed, 5 * pi / 4);
+            std::this_thread::sleep_for(std::chrono::milliseconds(150));
+        }
+        else if (direction[j].x == -1 )
         {
             api.MoveUp(1000 / speed);
             std::this_thread::sleep_for(std::chrono::milliseconds(400));
-
         }
         else if (direction[j].x == 1)
         {
+       
             api.MoveDown(1000 / speed);
             std::this_thread::sleep_for(std::chrono::milliseconds(400));
         }
         else if (direction[j].y == -1)
         {
+        
             api.MoveLeft(1000 / speed);
             std::this_thread::sleep_for(std::chrono::milliseconds(400));
            
         }
         else
         {
+     
             api.MoveRight(1000 / speed);
             std::this_thread::sleep_for(std::chrono::milliseconds(400));
         }
@@ -1273,39 +1318,27 @@ const std::vector<Point> findShortestPath(const std::vector<std::vector<int>>& g
         {
             break;
         }
-        count++;
         // 遍历当前点的四个方向
-        for (int i = 0; i < 4; ++i)
+        for (int i = 0; i < 8; ++i)
         {
-            if (count % 2 == 0)
-            {
-                int newX = current.x + dx[i];
-                int newY = current.y + dy[i];
+            int newX = current.x + dx[i];
+            int newY = current.y + dy[i];
 
-                // 如果新坐标在地图范围内且未访问过且不是障碍物，则加入队列
-                if (isValid(api, newX, newY) && !visited[newX][newY] && (grid[newX][newY] == 0))
-                {
-                    visited[newX][newY] = true;
-                    parent[newX][newY] = {current.x, current.y};
-                    q.push({newX, newY});
+            if (i < 4)
+            { // 对于沿着斜线行进的情况需要判断两个点的情况
+                if (grid[newX][current.y] || grid[current.x][newY])
+                { // 若出现了障碍，就跳过
+                    continue;
                 }
             }
-            else
+            // 如果新坐标在地图范围内且未访问过且不是障碍物，则加入队列
+            if (isValid(api, newX, newY) && !visited[newX][newY] && (grid[newX][newY] == 0))
             {
-                int newX = current.x + dx[3-i];
-                int newY = current.y + dy[3-i];
-
-                // 如果新坐标在地图范围内且未访问过且不是障碍物，则加入队列
-                if (isValid(api, newX, newY) && !visited[newX][newY] && (grid[newX][newY] == 0))
-                {
-                    visited[newX][newY] = true;
-                    parent[newX][newY] = {current.x, current.y};
-                    q.push({newX, newY});
-                }
+                visited[newX][newY] = true;
+                parent[newX][newY] = {current.x, current.y};
+                q.push({newX, newY});
             }
-            
         }
-        count %= 2;
     }
 
     // 回溯路径
@@ -1479,7 +1512,7 @@ void Greedy_Resource(IShipAPI& api)
         if (count % 10 == 0)
         {
             // 每十次进行一次判断与返回
-            api.Wait();
+            std::this_thread::sleep_for(std::chrono::milliseconds(200));
             state = api.GetResourceState(x, y);
             resource_vec[order].HP = state;
             count = 0;
@@ -1951,6 +1984,7 @@ void Greedy_Build(IShipAPI& api, THUAI7::ConstructionType type)
         api.Print("Please Get Construction ! ");
         return;
     }
+    Start:
     // minimum表示路径最小值
     int minimum = 1000;
     // order表示最小对应的编号
@@ -2010,7 +2044,7 @@ void Greedy_Build(IShipAPI& api, THUAI7::ConstructionType type)
         if (count % 10 == 0)
         {
             // 每十次进行一次判断与返回
-            api.Wait();
+            std::this_thread::sleep_for(std::chrono::milliseconds(200));
             if (api.GetConstructionState(x, y).has_value())
             {
                 hp = api.GetConstructionState(x, y)->hp;
@@ -2021,7 +2055,7 @@ void Greedy_Build(IShipAPI& api, THUAI7::ConstructionType type)
         }
     }
     Judge_4_Civil(api);
-    if (hp >= IntendedHp/2 || round > 80)
+    if (hp >= IntendedHp / 2 || round > 80)
     {  // 如果达到了预期建筑物血量的一半，就标记为已经建造好了
         // 测试建造的情况，（突然断开）
         // 但是实际上get hp貌似有bug，所以我们加入建造轮数round作为判断标准
