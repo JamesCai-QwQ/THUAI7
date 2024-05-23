@@ -2647,10 +2647,6 @@ void Strategy_Military_Guard(IShipAPI& api)
     }
 }
 
-void Chase(IShipAPI& api)
-{
-}
-
 void Go_Recover(IShipAPI& api)
 {
     auto selfinfo = api.GetSelfInfo();
