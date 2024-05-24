@@ -108,6 +108,8 @@ public:
     // 建造点位
     int x_4c;
     int y_4c;
+    int x_4c2;
+    int y_4c2;
     int HP=0;
     // 0为无 1为己方 2为敌方
     int group=0;
@@ -258,14 +260,12 @@ bool Under_Attack(IShipAPI& api);
 bool Attack_Loop_Cons(IShipAPI& api, double angle, my_Construction cons);
 
 
-    // 攻击建筑物 
+// 攻击建筑物 
 bool Attack_Cons(IShipAPI& api);
 
 // 攻击敌方基地
-
 void Attack_Base(IShipAPI& api);
-bool GoPlace_Dis(IShipAPI& api, int des_x, int des_y);
-bool GoPlace_Dis_Loop(IShipAPI& api, int des_x, int des_y);
+
 
 
 // 以下是大本营管理相关函数
@@ -352,9 +352,8 @@ void Play_4_Civil(IShipAPI& api)
         Greedy_Build(api, THUAI7::ConstructionType::Factory);
         Greedy_Resource(api);
     }
-    else if (api.GetSelfInfo()->playerID == 3)
+    else
     {
-        Greedy_Resource_Limit(api, 2);
         Greedy_Build(api, THUAI7::ConstructionType::Factory);
         Greedy_Resource(api);
     }
@@ -368,13 +367,6 @@ void Play_4_Milit(IShipAPI& api)
         Get_Map(api);
         Map_State=true;
     }
-    if (api.GetSelfInfo()->teamID == 1)
-    {
-        Decode_Me_4_Milit(api);
-        return;
-
-    }
-
     if (api.GetSelfInfo()->playerID == 2)
     {
         Decode_Me_4_Milit(api);
@@ -403,12 +395,8 @@ void Play_4_Milit(IShipAPI& api)
     {
         Decode_Me_4_Milit(api);
         Attack_Base(api);
-        if (Advantage(api))
-        {
-            Construction_Attack(api);
-            Resource_Attack(api);
-        }
-
+        Construction_Attack(api);
+        Resource_Attack(api);
     }
     return;
 
@@ -461,15 +449,18 @@ void Base_Module_Install(ITeamAPI& api)
     if (ships.size() == 3)
     {
         Military_Module_weapon(api, 2, 4);
-        Construct_Module(api, 2, 3);
+        Construct_Module(api, 3, 3);
         Military_Module_shield(api, 2, 3);
-        Military_Module_armour(api, 2, 3);
     }
     else if (ships.size() == 4)
     {
-        Military_Module_armour(api, 4, 3);
+        Construct_Module(api, 1, 3);
         Military_Module_weapon(api, 4, 4);
+        Produce_Module(api, 3, 3);
+        Military_Module_armour(api, 4, 3);
         Military_Module_shield(api, 4, 3);
+        Military_Module_armour(api, 2, 3);
+        
     }
     if (ships.size() == 4 && money > 100000)
     {   
@@ -624,6 +615,7 @@ void Resource_Attack(IShipAPI& api)
     if (order == -1)
     {
         // 敌方的找不到了QaQ
+        minimum = 1000;
         for (int i = 0; i < size; i++)
         {
             x = resource_vec[i].x;
@@ -653,7 +645,7 @@ void Resource_Attack(IShipAPI& api)
     // 前往攻击
     x = resource_vec[order].x;
     y = resource_vec[order].y;
-    if (api.GetSelfInfo()->playerID % 2 == 1)
+    if (api.GetSelfInfo()->playerID == 1)
     {
         GoPlace_Loop(api, resource_vec[order].x_4p, resource_vec[order].y_4p);
     }
@@ -923,6 +915,7 @@ std::vector<std::vector<int>> Get_Map(IShipAPI& api)
     auto selfinfo = api.GetSelfInfo();
     int cellx = api.GridToCell(selfinfo->x);
     int count_re = -1;
+    int count_cons = -1;
     int TeamID = selfinfo->teamID;
 
     if (TeamID == 0)
@@ -1085,24 +1078,97 @@ std::vector<std::vector<int>> Get_Map(IShipAPI& api)
             }
             else if (map[i][j] == THUAI7::PlaceType::Construction)
             {
+                count_cons++;
                 if (map[i + 1][j] == THUAI7::PlaceType::Space || map[i + 1][j] == THUAI7::PlaceType::Shadow)
                 {
                     construction_vec.push_back(my_Construction(i, j, i + 1, j));
+                    if (map[i - 1][j] == THUAI7::PlaceType::Space || map[i - 1][j] == THUAI7::PlaceType::Shadow)
+                    {
+                        construction_vec[count_cons].x_4c2 = i - 1;
+                        construction_vec[count_cons].y_4c2 = j;
+                        continue;
+                    }
+                    else if (map[i][j + 1] == THUAI7::PlaceType::Space || map[i][j + 1] == THUAI7::PlaceType::Shadow)
+                    {
+                        construction_vec[count_cons].x_4c2 = i;
+                        construction_vec[count_cons].y_4c2 = j + 1;
+                        continue;
+                    }
+                    else if (map[i][j - 1] == THUAI7::PlaceType::Space || map[i][j - 1] == THUAI7::PlaceType::Shadow)
+                    {
+                        construction_vec[count_cons].x_4c2 = i;
+                        construction_vec[count_cons].y_4c2 = j - 1;
+                        continue;
+                    }
                     continue;
                 }
                 else if (map[i - 1][j] == THUAI7::PlaceType::Space || map[i - 1][j] == THUAI7::PlaceType::Shadow)
                 {
                     construction_vec.push_back(my_Construction(i, j, i - 1, j));
+                    if (map[i + 1][j] == THUAI7::PlaceType::Space || map[i - 1][j] == THUAI7::PlaceType::Shadow)
+                    {
+                        construction_vec[count_cons].x_4c2 = i + 1;
+                        construction_vec[count_cons].y_4c2 = j;
+                        continue;
+                    }
+                    else if (map[i][j + 1] == THUAI7::PlaceType::Space || map[i][j + 1] == THUAI7::PlaceType::Shadow)
+                    {
+                        construction_vec[count_cons].x_4c2 = i;
+                        construction_vec[count_cons].y_4c2 = j + 1;
+                        continue;
+                    }
+                    else if (map[i][j - 1] == THUAI7::PlaceType::Space || map[i][j - 1] == THUAI7::PlaceType::Shadow)
+                    {
+                        construction_vec[count_cons].x_4c2 = i;
+                        construction_vec[count_cons].y_4c2 = j - 1;
+                        continue;
+                    }
                     continue;
                 }
                 else if (map[i][j + 1] == THUAI7::PlaceType::Space || map[i][j + 1] == THUAI7::PlaceType::Shadow)
                 {
                     construction_vec.push_back(my_Construction(i, j, i, j + 1));
+                    if (map[i - 1][j] == THUAI7::PlaceType::Space || map[i - 1][j] == THUAI7::PlaceType::Shadow)
+                    {
+                        construction_vec[count_cons].x_4c2 = i - 1;
+                        construction_vec[count_cons].y_4c2 = j;
+                        continue;
+                    }
+                    else if (map[i + 1][j] == THUAI7::PlaceType::Space || map[i + 1][j] == THUAI7::PlaceType::Shadow)
+                    {
+                        construction_vec[count_cons].x_4c2 = i + 1;
+                        construction_vec[count_cons].y_4c2 = j;
+                        continue;
+                    }
+                    else if (map[i][j - 1] == THUAI7::PlaceType::Space || map[i][j - 1] == THUAI7::PlaceType::Shadow)
+                    {
+                        construction_vec[count_cons].x_4c2 = i;
+                        construction_vec[count_cons].y_4c2 = j - 1;
+                        continue;
+                    }
                     continue;
                 }
                 else if (map[i][j - 1] == THUAI7::PlaceType::Space || map[i][j - 1] == THUAI7::PlaceType::Shadow)
                 {
                     construction_vec.push_back(my_Construction(i, j, i, j - 1));
+                    if (map[i + 1][j] == THUAI7::PlaceType::Space || map[i + 1][j] == THUAI7::PlaceType::Shadow)
+                    {
+                        construction_vec[count_cons].x_4c2 = i + 1;
+                        construction_vec[count_cons].y_4c2 = j;
+                        continue;
+                    }
+                    else if (map[i - 1][j] == THUAI7::PlaceType::Space || map[i - 1][j] == THUAI7::PlaceType::Shadow)
+                    {
+                        construction_vec[count_cons].x_4c2 = i - 1;
+                        construction_vec[count_cons].y_4c2 = j;
+                        continue;
+                    }
+                    else if (map[i][j + 1] == THUAI7::PlaceType::Space || map[i][j + 1] == THUAI7::PlaceType::Shadow)
+                    {
+                        construction_vec[count_cons].x_4c2 = i;
+                        construction_vec[count_cons].y_4c2 = j + 1;
+                        continue;
+                    }
                     continue;
                 }
             }
@@ -2115,7 +2181,7 @@ void Greedy_Build(IShipAPI& api, THUAI7::ConstructionType type)
         y = construction_vec[i].y;
 
         // Greedy算法找到离自己最近的资源
-        if (construction_vec[i].build == false)
+        if (construction_vec[i].build == false && ((selfinfo->teamID == 0 && x<=24) || (selfinfo->teamID == 1 && x >= 26)))
         {
             auto path = findShortestPath(Map_grid, {cellx, celly}, {construction_vec[i].x_4c, construction_vec[i].y_4c}, api);
             int size = path.size();
@@ -2123,6 +2189,26 @@ void Greedy_Build(IShipAPI& api, THUAI7::ConstructionType type)
             {
                 minimum = size;
                 order = i;
+            }
+        }
+    }
+    if (order == -1)
+    {
+        for (int i = 0; i < size; i++)
+        {
+            x = construction_vec[i].x;
+            y = construction_vec[i].y;
+
+            // Greedy算法找到离自己最近的资源
+            if (construction_vec[i].build == false && ((selfinfo->teamID == 0 && x >= 26) || (selfinfo->teamID == 1 && x <= 24)))
+            {
+                auto path = findShortestPath(Map_grid, {cellx, celly}, {construction_vec[i].x_4c, construction_vec[i].y_4c}, api);
+                int size = path.size();
+                if (size < minimum && size > 0)
+                {
+                    minimum = size;
+                    order = i;
+                }
             }
         }
     }
@@ -2136,7 +2222,14 @@ void Greedy_Build(IShipAPI& api, THUAI7::ConstructionType type)
     // 前往建造
     x = construction_vec[order].x;
     y = construction_vec[order].y;
-    GoPlace_Loop(api, construction_vec[order].x_4c, construction_vec[order].y_4c);
+    if (selfinfo->playerID == 1)
+    {
+        GoPlace_Loop(api, construction_vec[order].x_4c, construction_vec[order].y_4c);
+    }
+    else
+    {
+        GoPlace_Loop(api, construction_vec[order].x_4c2, construction_vec[order].y_4c2);
+    }
 
     int hp = 0;
     if (api.GetConstructionState(x, y).has_value())
@@ -2171,10 +2264,8 @@ void Greedy_Build(IShipAPI& api, THUAI7::ConstructionType type)
         }
     }
     Judge_4_Civil(api);
-    if (hp >= IntendedHp / 2 || round > 100)
-    {  // 如果达到了预期建筑物血量的一半，就标记为已经建造好了
-        // 测试建造的情况，（突然断开）
-        // 但是实际上get hp貌似有bug，所以我们加入建造轮数round作为判断标准
+    if (hp == IntendedHp || round > 100)
+    {  
         construction_vec[order].build = true;
         construction_vec[order].group = 1;
         Greedy_Build(api, type);
@@ -2773,7 +2864,7 @@ Begin:
     x = resource_vec[order].x;
     y = resource_vec[order].y;
     int temp = false;
-    if (api.GetSelfInfo()->playerID % 2 == 1)
+    if (api.GetSelfInfo()->playerID == 1)
     {
         temp =GoPlace_Loop(api, resource_vec[order].x_4p, resource_vec[order].y_4p);
     }
@@ -2783,7 +2874,7 @@ Begin:
     }
     if (temp == false)
     {
-
+        goto Begin;
     }
     int state = api.GetResourceState(x, y);
 
@@ -3004,6 +3095,10 @@ void Base_Build_Ship(ITeamAPI& api, int birthdes)
             milit_num++;
         }
     }
+    if (civil_num + milit_num < 4 && money>70000)
+    {
+        api.BuildShip(THUAI7::ShipType::FlagShip, birthdes);
+    }
     if (civil_num == 1 && milit_num == 0)
     {
         Build_Ship(api, 2, birthdes);
@@ -3030,6 +3125,7 @@ void Base_Build_Ship(ITeamAPI& api, int birthdes)
         Build_Ship(api, 2, birthdes);
         Build_Ship(api, 4, birthdes);
     }
+
     
 
 }
